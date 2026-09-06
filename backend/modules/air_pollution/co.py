@@ -13,13 +13,6 @@ def analyze_co(request):
     aoi = ee.Geometry(request['aoi'])
     aggregation = request['aggregation']
 
-    composites = {
-        'mean': ee.ImageCollection(DATASET).mean(),
-        'median': ee.ImageCollection(DATASET).median(),
-        'min': ee.ImageCollection(DATASET).min(),
-        'max': ee.ImageCollection(DATASET).max(),
-    }
-
     collection = (
         ee.ImageCollection(DATASET)
         .filterBounds(aoi)
@@ -31,17 +24,19 @@ def analyze_co(request):
     if not image_count:
         raise ValueError('No Sentinel-5P CO imagery was found for this AOI and date range.')
 
-    # Aggregate across the selected time period, then clip only the displayed
-    # result to the user's AOI. The statistic is calculated from the same AOI.
-    composite = {
-        'mean': collection.mean(),
-        'median': collection.median(),
-        'min': collection.min(),
-        'max': collection.max(),
-    }[aggregation].clip(aoi)
+    # Create one temporal mean composite for the selected period.
+    # The selected aggregation is then a spatial statistic over the user's AOI.
+    image = collection.mean().clip(aoi)
 
-    stats = composite.reduceRegion(
-        reducer=ee.Reducer.mean(),
+    reducers = {
+        'mean': ee.Reducer.mean(),
+        'median': ee.Reducer.median(),
+        'min': ee.Reducer.min(),
+        'max': ee.Reducer.max(),
+    }
+
+    stats = image.reduceRegion(
+        reducer=reducers[aggregation],
         geometry=aoi,
         scale=1113.2,
         bestEffort=True,
@@ -52,7 +47,7 @@ def analyze_co(request):
     if value is None:
         raise RuntimeError('GEE returned no statistic for the selected AOI.')
 
-    map_info = composite.getMapId({
+    map_info = image.getMapId({
         'min': 0,
         'max': 0.05,
         'palette': ['black', 'blue', 'cyan', 'yellow', 'red'],
