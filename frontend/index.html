@@ -1,1 +1,61 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GeoAI Remote Sensing</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css"><link rel="stylesheet" href="css/style.css"></head><body><aside><h1>GeoAI Analysis</h1><label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label><label>Variable<select id="variable"><option value="CO">CO</option></select></label><div class="dates"><label>Start<input id="start" type="date" value="2026-01-01"></label><label>End<input id="end" type="date" value="2026-03-31"></label></div><label>Aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label><button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button><p id="status">Draw a polygon or rectangle on the map.</p><section id="results" hidden><h2>Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p></section></aside><main id="map"></main><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="js/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GeoAI Remote Sensing</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <aside>
+    <h1>GeoAI Analysis</h1>
+
+    <label>Module
+      <select id="module">
+        <option value="air_pollution">Air Pollution</option>
+      </select>
+    </label>
+
+    <label>Variable
+      <select id="variable">
+        <option value="CO">CO</option>
+      </select>
+    </label>
+
+    <div class="dates">
+      <label>Start<input id="start" type="date"></label>
+      <label>End<input id="end" type="date"></label>
+    </div>
+
+    <label>Aggregation
+      <select id="aggregation">
+        <option value="mean">Mean</option>
+        <option value="median">Median</option>
+        <option value="min">Minimum</option>
+        <option value="max">Maximum</option>
+      </select>
+    </label>
+
+    <button id="run">RUN ANALYSIS</button>
+    <button id="clear">CLEAR AOI</button>
+    <p id="status">Draw a polygon or rectangle on the map.</p>
+
+    <section id="results" hidden>
+      <h2>Result</h2>
+      <strong id="value">—</strong>
+      <span id="unit">mol/m²</span>
+      <p>Images: <b id="images">—</b></p>
+      <p id="dates"></p>
+      <p id="note"></p>
+    </section>
+  </aside>
+
+  <main id="map"></main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
