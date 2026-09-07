@@ -11,6 +11,7 @@ let aoiLayer = null;
 let resultLayer = null;
 let uploadedLayer = null;
 let timeSeriesChart = null;
+let latestTimeSeriesData = null;
 let geotiffUrl = null;
 const el = (id) => document.getElementById(id);
 
@@ -30,32 +31,59 @@ function setLevel(level) {
 
 function closeChart() {
   el('chart-panel').hidden = true;
+  el('show-chart').hidden = !latestTimeSeriesData;
   if (timeSeriesChart) { timeSeriesChart.destroy(); timeSeriesChart = null; }
 }
 
 function renderTimeSeries(data) {
   const series = data.time_series || [];
-  if (!series.length) return closeChart();
+  latestTimeSeriesData = data;
+  if (!series.length) {
+    closeChart();
+    el('show-chart').hidden = true;
+    return;
+  }
+
   const labels = series.map((item) => item.date.slice(0, 7));
   const values = series.map((item) => item.value);
   el('chart-title').textContent = `${pollutantNames[data.variable]} time series`;
-  el('chart-subtitle').textContent = `Monthly mean over the selected AOI • ${data.unit}`;
+  el('chart-subtitle').textContent = series.length === 1
+    ? `Monthly mean over the selected AOI • ${data.unit} • 1 month`
+    : `Monthly mean over the selected AOI • ${data.unit}`;
   el('chart-panel').hidden = false;
+  el('show-chart').hidden = true;
   if (timeSeriesChart) timeSeriesChart.destroy();
 
   timeSeriesChart = new Chart(el('time-series-chart'), {
     type: 'line',
-    data: { labels, datasets: [{ label: data.variable, data: values, tension: 0.25, fill: false, pointRadius: 2, pointHoverRadius: 5 }] },
+    data: {
+      labels,
+      datasets: [{
+        label: data.variable,
+        data: values,
+        tension: 0.25,
+        fill: false,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        spanGaps: true
+      }]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: (context) => `${formatValue(context.parsed.y)} ${data.unit}` } }
       },
       scales: {
-        x: { title: { display: true, text: 'Period' } },
-        y: { title: { display: true, text: data.unit }, ticks: { callback: (value) => Number(value).toExponential(2) } }
+        x: { title: { display: true, text: 'Period' }, offset: series.length === 1 },
+        y: {
+          title: { display: true, text: data.unit },
+          ticks: { callback: (value) => Number(value).toExponential(2) },
+          beginAtZero: false
+        }
       }
     }
   });
@@ -74,11 +102,16 @@ function clearResults() {
   setLevel(null);
   geotiffUrl = null;
   el('geotiff').disabled = true;
+  latestTimeSeriesData = null;
+  el('show-chart').hidden = true;
   closeChart();
 }
 
 el('start-app').onclick = () => el('welcome').classList.add('hidden');
 el('close-chart').onclick = closeChart;
+el('show-chart').onclick = () => {
+  if (latestTimeSeriesData) renderTimeSeries(latestTimeSeriesData);
+};
 
 map.on('pm:create', (e) => {
   setAoiLayer(e.layer);
