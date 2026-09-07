@@ -79,6 +79,7 @@
       <p id="classification"></p>
       <p id="thresholds" class="thresholds"></p>
       <p id="note" class="note"></p>
+      <button id="show-chart" class="secondary chart-toggle" hidden>SHOW TIME SERIES</button>
     </section>
 
     <section class="legend-card">
@@ -98,7 +99,7 @@
         <h2 id="chart-title">Pollutant time series</h2>
         <p id="chart-subtitle">Monthly mean over the selected AOI</p>
       </div>
-      <button id="close-chart" class="chart-close" type="button">×</button>
+      <button id="close-chart" class="chart-close" type="button" aria-label="Hide time series">×</button>
     </div>
     <canvas id="time-series-chart"></canvas>
   </div>
