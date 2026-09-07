@@ -24,9 +24,7 @@
     <p class="subtitle">Air Pollution • Sentinel-5P</p>
 
     <label>Module
-      <select id="module">
-        <option value="air_pollution">Air Pollution</option>
-      </select>
+      <select id="module"><option value="air_pollution">Air Pollution</option></select>
     </label>
 
     <label>Variable
@@ -51,9 +49,22 @@
       </select>
     </label>
 
+    <section class="aoi-card">
+      <h2>AOI</h2>
+      <p class="helper">Draw a polygon/rectangle, or upload a Shapefile ZIP.</p>
+      <input id="shp-upload" type="file" accept=".zip,application/zip">
+      <p id="upload-status" class="upload-status">Required: .shp + .shx + .dbf + .prj inside the ZIP. Max 20 MB.</p>
+    </section>
+
     <button id="run">RUN ANALYSIS</button>
     <button id="clear">CLEAR AOI</button>
-    <button id="pdf" class="secondary">DOWNLOAD PDF</button>
+
+    <section class="download-card">
+      <h2>Download Result</h2>
+      <button id="pdf" class="secondary">PDF REPORT</button>
+      <button id="geotiff" class="secondary" disabled>DOWNLOAD GEOTIFF</button>
+    </section>
+
     <p id="status">Draw a polygon or rectangle on the map.</p>
 
     <section id="results" hidden>
