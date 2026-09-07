@@ -59,7 +59,7 @@ def _classify(value, image, aoi, band, scale):
 
 
 def _time_series(collection, aoi, band, scale, start_date, end_date):
-    """Build monthly AOI means, following the time-series approach in the training module."""
+    """Build monthly AOI means."""
     start = ee.Date(start_date)
     end = ee.Date(end_date)
     n_months = end.difference(start, 'month').ceil().max(1)
@@ -77,14 +77,11 @@ def _time_series(collection, aoi, band, scale, start_date, end_date):
             bestEffort=True,
             maxPixels=1e8,
         ).get(band)
-        return ee.Feature(
-            None,
-            {
-                'date': period_start.format('YYYY-MM-dd'),
-                'value': value,
-                'image_count': subset.size(),
-            },
-        )
+        return ee.Feature(None, {
+            'date': period_start.format('YYYY-MM-dd'),
+            'value': value,
+            'image_count': subset.size(),
+        })
 
     features = ee.FeatureCollection(ee.List.sequence(0, n_months.subtract(1)).map(make_month))
     features = features.filter(ee.Filter.notNull(['value']))
@@ -113,9 +110,7 @@ def analyze_pollutant(request):
 
     image_count = collection.size().getInfo()
     if not image_count:
-        raise ValueError(
-            f"No Sentinel-5P {variable} imagery was found for this AOI and date range."
-        )
+        raise ValueError(f'No Sentinel-5P {variable} imagery was found for this AOI and date range.')
 
     image = collection.mean().clip(aoi)
 
@@ -125,7 +120,6 @@ def analyze_pollutant(request):
         'min': ee.Reducer.min(),
         'max': ee.Reducer.max(),
     }
-
     stats = image.reduceRegion(
         reducer=reducers[aggregation],
         geometry=aoi,
@@ -138,24 +132,27 @@ def analyze_pollutant(request):
     if value is None:
         raise RuntimeError(f'GEE returned no {variable} statistic for the selected AOI.')
 
-    level, p33, p66 = _classify(
-        float(value), image, aoi, config['band'], config['scale']
-    )
-
-    time_series = _time_series(
-        collection,
-        aoi,
-        config['band'],
-        config['scale'],
-        start_date,
-        end_date,
-    )
+    level, p33, p66 = _classify(float(value), image, aoi, config['band'], config['scale'])
+    time_series = _time_series(collection, aoi, config['band'], config['scale'], start_date, end_date)
 
     map_info = image.getMapId({
         'min': config['viz_min'],
         'max': config['viz_max'],
         'palette': config['palette'],
     })
+
+    geotiff_url = None
+    try:
+        geotiff_url = image.getDownloadURL({
+            'name': f'{variable}_{start_date}_{end_date}',
+            'region': aoi.getInfo()['coordinates'],
+            'scale': config['scale'],
+            'crs': 'EPSG:4326',
+            'fileFormat': 'GeoTIFF',
+            'format': 'GEO_TIFF',
+        })
+    except Exception:
+        geotiff_url = None
 
     return {
         'success': True,
@@ -173,10 +170,7 @@ def analyze_pollutant(request):
         'classification': {
             'level': level,
             'method': 'Relative tertile classification within the selected AOI and analysis period.',
-            'thresholds': {
-                'p33': p33,
-                'p66': p66,
-            },
+            'thresholds': {'p33': p33, 'p66': p66},
         },
         'time_series': [
             {
@@ -188,6 +182,7 @@ def analyze_pollutant(request):
             if feature.get('properties', {}).get('value') is not None
         ],
         'map': {'tile_url': map_info['tile_fetcher'].url_format},
+        'downloads': {'geotiff_url': geotiff_url},
         'note': (
             f"{variable} is represented as Sentinel-5P column number density ({config['unit']}). "
             'The Good/Moderate/High classes are relative to the selected AOI and period; '
