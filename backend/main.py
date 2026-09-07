@@ -2,18 +2,19 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.staticfiles import StaticFiles
 
+from backend.modules.air_pollution.aoi import shapefile_zip_to_geojson
 from backend.modules.air_pollution.pollutants import analyze_pollutant
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / 'frontend'
 
-app = FastAPI(title='GeoAI Remote Sensing WebGIS', version='0.2.0')
+app = FastAPI(title='GeoAI Remote Sensing WebGIS', version='0.3.0')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -34,6 +35,20 @@ class AnalysisRequest(BaseModel):
 @app.get('/api/health')
 def health():
     return {'status': 'ok'}
+
+
+@app.post('/api/aoi/upload')
+async def upload_aoi(file: UploadFile = File(...)):
+    filename = file.filename or ''
+    if not filename.lower().endswith('.zip'):
+        raise HTTPException(status_code=400, detail='Upload a Shapefile ZIP (.zip) containing .shp, .shx, .dbf, and .prj files.')
+    try:
+        content = await file.read()
+        return shapefile_zip_to_geojson(filename, content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'Could not read the shapefile: {exc}') from exc
 
 
 @app.post('/api/analyze')
