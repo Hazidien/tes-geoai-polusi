@@ -20,15 +20,14 @@ section strong{display:block;font-size:28px;margin:8px 0 2px}
 section span{color:#9fb0c8}
 .result-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .level-badge{display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;color:#fff;background:#475569}
-.level-badge.low{background:#2563eb}
-.level-badge.moderate{background:#0d9488}
-.level-badge.high{background:#d97706}
-.level-badge.very-high{background:#dc2626}
+.level-badge.good{background:#16a34a}
+.level-badge.moderate{background:#d97706}
+.level-badge.high{background:#dc2626}
 .thresholds,.note{font-size:11px;line-height:1.45;color:#aebbd0}
 .legend-card h2{margin-bottom:12px}
 .legend-row{font-size:12px;margin:8px 0;display:flex;align-items:center;gap:8px}
 .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
-.dot.low{background:#2563eb}.dot.moderate{background:#0d9488}.dot.high{background:#d97706}.dot.very-high{background:#dc2626}
+.dot.good{background:#16a34a}.dot.moderate{background:#d97706}.dot.high{background:#dc2626}
 .legend-card p{font-size:10px;line-height:1.45;color:#8191aa;margin-bottom:0}
 #map{height:100vh}
 .modal-backdrop{position:fixed;inset:0;background:rgba(3,8,18,.72);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px}
@@ -39,7 +38,13 @@ section span{color:#9fb0c8}
 .modal-card p{color:#b9c6d9;margin:8px 0}
 .modal-description{font-size:13px;line-height:1.6;margin:20px auto!important;max-width:390px}
 .modal-card button{max-width:240px;background:#2d7ef7;border-color:#2d7ef7}
-@media(max-width:800px){body{display:block}aside{position:absolute;left:0;top:0;width:300px;height:100%;overflow:auto}.modal-card{padding:26px}.modal-card h2{font-size:24px}}
+.chart-panel{position:fixed;left:350px;right:20px;bottom:20px;height:340px;padding:18px 20px;background:rgba(17,27,45,.97);border:1px solid #34435d;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);z-index:1200}
+.chart-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.chart-header h2{margin:0;font-size:18px}
+.chart-header p{margin:5px 0 12px;color:#9fb0c8;font-size:12px}
+.chart-close{width:36px;height:36px;margin:0;padding:0;font-size:24px;line-height:1;background:#22314a;border-color:#34435d}
+#time-series-chart{width:100%!important;height:260px!important}
+@media(max-width:800px){body{display:block}aside{position:absolute;left:0;top:0;width:300px;height:100%;overflow:auto}.modal-card{padding:26px}.modal-card h2{font-size:24px}.chart-panel{left:15px;right:15px;bottom:15px;height:310px}.chart-header h2{font-size:16px}#time-series-chart{height:230px!important}}
 @media print{
   @page{size:A4 landscape;margin:8mm}
   body{display:block;background:#fff;color:#111}
@@ -48,7 +53,7 @@ section span{color:#9fb0c8}
   aside .subtitle,aside label,aside #run,aside #clear,aside #pdf,aside #status,.legend-card{display:none!important}
   #results{display:block!important;background:#f5f7fa;color:#111;margin-top:12px;border:1px solid #ddd}
   #results span,#results p{color:#333}
-  #map{margin-left:30%;width:70%;height:100vh}
-  .modal-backdrop{display:none!important}
+  #map{margin-left:30%;width:70%;height:70vh}
+  .modal-backdrop,.chart-panel{display:none!important}
   .leaflet-control-container .leaflet-top{display:none}
 }
