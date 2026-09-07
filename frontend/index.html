@@ -3,14 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>GeoAI Remote Sensing</title>
+  <title>WebGIS Polusi Udara — Hazidien Ramadhan Utomo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <div id="welcome" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-kicker">GeoAI • Remote Sensing • WebGIS</div>
+      <h2>WebGIS Polusi Udara</h2>
+      <p>by <strong>Hazidien Ramadhan Utomo</strong></p>
+      <p class="modal-description">Analisis Carbon Monoxide (CO) berbasis Sentinel-5P dan Google Earth Engine menggunakan AOI yang dapat dipilih langsung pada peta.</p>
+      <button id="start-app">START ANALYSIS</button>
+    </div>
+  </div>
+
   <aside>
     <h1>GeoAI Analysis</h1>
+    <p class="subtitle">Air Pollution • Sentinel-5P</p>
 
     <label>Module
       <select id="module">
@@ -20,7 +31,7 @@
 
     <label>Variable
       <select id="variable">
-        <option value="CO">CO</option>
+        <option value="CO">Carbon Monoxide (CO)</option>
       </select>
     </label>
 
@@ -40,15 +51,30 @@
 
     <button id="run">RUN ANALYSIS</button>
     <button id="clear">CLEAR AOI</button>
+    <button id="pdf" class="secondary">DOWNLOAD PDF</button>
     <p id="status">Draw a polygon or rectangle on the map.</p>
 
     <section id="results" hidden>
-      <h2>Result</h2>
+      <div class="result-heading">
+        <h2>Result</h2>
+        <span id="level" class="level-badge">—</span>
+      </div>
       <strong id="value">—</strong>
       <span id="unit">mol/m²</span>
       <p>Images: <b id="images">—</b></p>
       <p id="dates"></p>
-      <p id="note"></p>
+      <p id="classification"></p>
+      <p id="thresholds" class="thresholds"></p>
+      <p id="note" class="note"></p>
+    </section>
+
+    <section class="legend-card">
+      <h2>Relative CO level</h2>
+      <div class="legend-row"><span class="dot low"></span> Low</div>
+      <div class="legend-row"><span class="dot moderate"></span> Moderate</div>
+      <div class="legend-row"><span class="dot high"></span> High</div>
+      <div class="legend-row"><span class="dot very-high"></span> Very High</div>
+      <p>Classification is relative to the spatial distribution inside the selected AOI and period. It is not an ISPU or health-standard classification.</p>
     </section>
   </aside>
 
