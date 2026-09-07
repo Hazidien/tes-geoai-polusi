@@ -3,7 +3,7 @@ import zipfile
 
 import shapefile
 from pyproj import CRS, Transformer
-from shapely.geometry import shape
+from shapely.geometry import mapping, shape
 from shapely.ops import transform, unary_union
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -18,8 +18,17 @@ def _safe_zip_members(archive):
         name = info.filename.replace('\\', '/')
         if name.startswith('/') or '..' in name.split('/'):
             raise ValueError('Invalid ZIP path.')
-        members[name.lower().split('/')[-1]] = info
+        members[name.lower()] = info
     return members
+
+
+def _find_member(members, filename):
+    target = filename.lower()
+    if target in members:
+        return target
+    basename = target.rsplit('/', 1)[-1]
+    matches = [name for name in members if name.rsplit('/', 1)[-1] == basename]
+    return matches[0] if matches else None
 
 
 def shapefile_zip_to_geojson(filename, content):
@@ -33,32 +42,22 @@ def shapefile_zip_to_geojson(filename, content):
 
     with archive:
         members = _safe_zip_members(archive)
-        required = ['.shp', '.shx', '.dbf']
-        missing = [suffix for suffix in required if not any(name.endswith(suffix) for name in members)]
+        shp_names = [name for name in members if name.endswith('.shp')]
+        if not shp_names:
+            raise ValueError('The ZIP does not contain a .shp file.')
+        shp_name = shp_names[0]
+        stem = shp_name[:-4]
+        shx_name = _find_member(members, stem + '.shx')
+        dbf_name = _find_member(members, stem + '.dbf')
+        prj_name = _find_member(members, stem + '.prj')
+        missing = [ext for ext, member in (('.shx', shx_name), ('.dbf', dbf_name), ('.prj', prj_name)) if not member]
         if missing:
             raise ValueError(f'Shapefile ZIP is missing required file(s): {", ".join(missing)}')
 
-        shp_name = next(name for name in members if name.endswith('.shp'))
-        base = shp_name[:-4]
-        shx_name = base + '.shx'
-        dbf_name = base + '.dbf'
-        prj_name = base + '.prj'
-
-        if shx_name not in members or dbf_name not in members:
-            stem = shp_name.rsplit('/', 1)[-1][:-4]
-            shx_name = next(name for name in members if name.rsplit('/', 1)[-1].lower() == f'{stem}.shx')
-            dbf_name = next(name for name in members if name.rsplit('/', 1)[-1].lower() == f'{stem}.dbf')
-
-        if prj_name not in members:
-            stem = shp_name.rsplit('/', 1)[-1][:-4]
-            prj_name = next((name for name in members if name.rsplit('/', 1)[-1].lower() == f'{stem}.prj'), None)
-        if not prj_name:
-            raise ValueError('The shapefile must include a .prj file so its CRS can be interpreted safely.')
-
         reader = shapefile.Reader(
-            shp=BytesIO(archive.read(shp_name)),
-            shx=BytesIO(archive.read(shx_name)),
-            dbf=BytesIO(archive.read(dbf_name)),
+            shp=BytesIO(archive.read(members[shp_name])),
+            shx=BytesIO(archive.read(members[shx_name])),
+            dbf=BytesIO(archive.read(members[dbf_name])),
         )
         shapes = reader.shapes()
         if not shapes:
@@ -77,9 +76,12 @@ def shapefile_zip_to_geojson(filename, content):
         if not geometries:
             raise ValueError('The shapefile contains no usable polygon geometry.')
 
-        source_crs = CRS.from_wkt(archive.read(prj_name).decode('utf-8-sig'))
-        target_crs = CRS.from_epsg(4326)
-        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+        try:
+            source_crs = CRS.from_wkt(archive.read(members[prj_name]).decode('utf-8-sig'))
+        except Exception as exc:
+            raise ValueError('The .prj file could not be interpreted.') from exc
+
+        transformer = Transformer.from_crs(source_crs, CRS.from_epsg(4326), always_xy=True)
         reprojected = [transform(transformer.transform, geom) for geom in geometries]
         merged = unary_union(reprojected)
         if merged.is_empty:
@@ -93,13 +95,7 @@ def shapefile_zip_to_geojson(filename, content):
             'success': True,
             'filename': filename,
             'feature_count': len(geometries),
-            'geometry': {
-                'type': merged.geom_type,
-                'coordinates': list(merged.coords) if merged.geom_type == 'Polygon' else [list(poly.coords) for poly in merged.geoms],
-            } if merged.geom_type == 'Polygon' else {
-                'type': 'MultiPolygon',
-                'coordinates': [[[list(coord) for coord in ring.coords] for ring in polygon.geoms] for polygon in merged.geoms],
-            },
+            'geometry': mapping(merged),
             'crs': 'EPSG:4326',
             'note': 'The uploaded shapefile is processed temporarily as an AOI and is not stored as a permanent Earth Engine asset.',
         }
