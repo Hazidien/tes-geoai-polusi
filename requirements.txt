@@ -4,3 +4,6 @@ earthengine-api==1.7.42
 pydantic==2.11.7
 python-dotenv==1.1.1
 pytest==8.4.1
+pyshp==3.0.1
+pyproj==3.7.2
+shapely==2.1.1
