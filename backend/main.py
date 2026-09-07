@@ -8,12 +8,12 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.staticfiles import StaticFiles
 
-from backend.modules.air_pollution.co import analyze_co
+from backend.modules.air_pollution.pollutants import analyze_pollutant
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / 'frontend'
 
-app = FastAPI(title='GeoAI Remote Sensing WebGIS', version='0.1.0')
+app = FastAPI(title='GeoAI Remote Sensing WebGIS', version='0.2.0')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -24,7 +24,7 @@ app.add_middleware(
 
 class AnalysisRequest(BaseModel):
     module: Literal['air_pollution']
-    variable: Literal['CO']
+    variable: Literal['CO', 'NO2', 'SO2']
     aoi: dict = Field(...)
     start_date: date
     end_date: date
@@ -43,10 +43,8 @@ def analyze(request: AnalysisRequest):
     if request.aoi.get('type') not in {'Polygon', 'MultiPolygon'}:
         raise HTTPException(status_code=400, detail='AOI must be a GeoJSON Polygon or MultiPolygon.')
     try:
-        # Serialize Pydantic date objects to ISO strings before passing the
-        # request to Earth Engine, which expects date-like string values here.
         payload = request.model_dump(mode='json')
-        return analyze_co(payload)
+        return analyze_pollutant(payload)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
