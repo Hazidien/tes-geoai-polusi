@@ -1,6 +1,6 @@
-# GeoAI Remote Sensing WebGIS
+# WebGIS Remote Sensing
 
-A portfolio-quality GeoAI remote-sensing WebGIS built for GitHub Codespaces.
+A portfolio-quality WebGIS for remote-sensing analysis, built for GitHub Codespaces.
 
 ## MVP
 - Interactive Leaflet map
@@ -36,4 +36,4 @@ Set `GEE_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS` in `.env`. Never commi
 The value represents satellite column number density and is not a ground-level concentration.
 
 ## Roadmap
-NO2 → SO2 → time series → CSV/GeoTIFF → PDF report → constrained GeoAI assistant.
+NO2 → SO2 → time series → CSV/GeoTIFF → PDF report
