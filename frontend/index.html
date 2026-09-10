@@ -3,80 +3,48 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WebGIS Remote Sensing</title>
+<title>WebGIS Air Pollution</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <aside>
   <div class="sidebar-header">
-    <div>
-      <h1>WebGIS Analysis</h1>
-      <div class="subtitle">Air Pollution · Sentinel-5P</div>
-    </div>
-    <button id="info-toggle" class="info-button" type="button" aria-label="Open WebGIS information" aria-expanded="false">i</button>
+    <div><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div>
   </div>
-
   <label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
   <label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
   <div class="dates">
     <label>Start<input id="start" type="date" value="2026-01-01"></label>
     <label>End<input id="end" type="date" value="2026-03-31"></label>
   </div>
-  <label>Spatial aggregation<select id="aggregation">
-    <option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option>
-  </select></label>
-
-  <section class="aoi-section">
-    <h2>AOI</h2>
-    <p class="help-text">Draw a polygon or rectangle on the map to define the analysis area.</p>
-  </section>
-  <button id="run">RUN ANALYSIS</button>
-  <button id="clear">CLEAR AOI</button>
+  <label>Spatial aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
+  <section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw a polygon or rectangle on the map to define the analysis area.</p></section>
+  <button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
   <p id="status" class="status">Draw a polygon or rectangle on the map.</p>
-
-  <section id="results" hidden>
-    <h2>Result</h2>
-    <strong id="value">—</strong><span id="unit">mol/m²</span>
-    <p>Images: <b id="images">—</b></p>
-    <p id="dates"></p><p id="note"></p>
-  </section>
+  <section id="results" hidden><h2>Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p></section>
 </aside>
-
 <main id="map"></main>
 
+<button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="WebGIS Information">i</button>
 <section id="info-panel" class="info-panel" hidden aria-label="WebGIS tutorial">
-  <div class="info-header">
-    <div><h2>WebGIS Information</h2><p>How to use this application</p></div>
-    <button id="info-close" type="button" aria-label="Close information">×</button>
+  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>WebGIS Air Pollution</h2><p>Information &amp; tutorial penggunaan</p></div><button id="info-close" class="info-close" type="button" aria-label="Close information">×</button></div>
+  <div class="info-content">
+    <p class="intro">WebGIS ini digunakan untuk mengeksplorasi <b>Carbon Monoxide (CO)</b> berbasis citra satelit <b>Sentinel-5P</b> melalui Google Earth Engine.</p>
+    <h3>Cara menggunakan</h3>
+    <ol><li>Pilih <b>Module</b> dan <b>Variable</b> yang tersedia.</li><li>Tentukan <b>Start</b> dan <b>End</b> date untuk periode analisis.</li><li>Pilih metode <b>Spatial aggregation</b> (Mean, Median, Minimum, atau Maximum).</li><li>Gunakan toolbar gambar pada peta untuk membuat <b>AOI</b> berbentuk polygon atau rectangle.</li><li>Klik <b>RUN ANALYSIS</b> untuk menjalankan analisis.</li><li>Hasil statistik dan raster CO akan ditampilkan pada peta dan panel <b>Result</b>.</li><li>Klik <b>CLEAR AOI</b> untuk menghapus area dan membuat analisis baru.</li></ol>
+    <div class="info-note"><b>Catatan interpretasi:</b> nilai CO yang ditampilkan adalah <i>satellite column number density</i> dalam mol/m², bukan konsentrasi CO langsung di permukaan tanah atau indeks ISPU.</div>
   </div>
-  <ol>
-    <li><b>Select the module and variable.</b> The current analysis uses Sentinel-5P Carbon Monoxide (CO).</li>
-    <li><b>Set the analysis period.</b> Choose a start date and an end date. The end date must be later than the start date.</li>
-    <li><b>Choose spatial aggregation.</b> Mean, median, minimum, or maximum can be used for the selected AOI.</li>
-    <li><b>Draw an AOI.</b> Use the Leaflet-Geoman tools on the map to draw a polygon or rectangle.</li>
-    <li><b>Run the analysis.</b> Click <b>RUN ANALYSIS</b> to process the selected area with Google Earth Engine.</li>
-    <li><b>Read the result.</b> The map displays the CO raster and the panel reports the selected statistic and image count.</li>
-    <li><b>Clear and repeat.</b> Click <b>CLEAR AOI</b> before creating a new analysis area.</li>
-  </ol>
-  <div class="info-note"><b>Important:</b> CO shown here is Sentinel-5P satellite column number density (mol/m²). It is not a direct ground-level air-quality concentration.</div>
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=2"></script>
 <script>
-  const infoToggle = document.getElementById('info-toggle');
-  const infoPanel = document.getElementById('info-panel');
-  const infoClose = document.getElementById('info-close');
-  function setInfo(open) {
-    infoPanel.hidden = !open;
-    infoToggle.setAttribute('aria-expanded', String(open));
-    infoToggle.setAttribute('aria-label', open ? 'Close WebGIS information' : 'Open WebGIS information');
-  }
-  infoToggle.addEventListener('click', () => setInfo(infoPanel.hidden));
-  infoClose.addEventListener('click', () => setInfo(false));
+const infoToggle=document.getElementById('info-toggle'),infoPanel=document.getElementById('info-panel'),infoClose=document.getElementById('info-close');
+function setInfo(open){infoPanel.hidden=!open;infoToggle.setAttribute('aria-expanded',String(open));}
+infoToggle.addEventListener('click',()=>setInfo(infoPanel.hidden));infoClose.addEventListener('click',()=>setInfo(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setInfo(false)});
 </script>
-</body>
-</html>
+</body></html>
