@@ -6,7 +6,7 @@
   <title>WebGIS Polusi Udara — Hazidien Ramadhan Utomo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/style.css?v=4">
 </head>
 <body>
   <div id="welcome" class="modal-backdrop">
@@ -20,8 +20,9 @@
   </div>
 
   <aside>
-    <div class="sidebar-header">
+    <div class="brand">
       <div><h1>WebGIS Analysis</h1><p class="subtitle">Air Pollution • Sentinel-5P</p></div>
+      <div class="brand-actions"><button id="infoBtn" class="icon-btn info-btn" type="button" title="WebGIS information" aria-label="WebGIS information">i</button></div>
     </div>
 
     <label>Module
@@ -42,79 +43,52 @@
       <select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select>
     </label>
 
-    <section class="aoi-card">
-      <h2>AOI</h2>
-      <p class="helper">Draw a polygon/rectangle, or upload a Shapefile ZIP.</p>
-      <input id="shp-upload" type="file" accept=".zip,application/zip">
-      <p id="upload-status" class="upload-status">Required: .shp + .shx + .dbf + .prj inside the ZIP. Max 20 MB.</p>
-    </section>
-
-    <button id="run">RUN ANALYSIS</button>
-    <button id="clear">CLEAR AOI</button>
-
-    <section class="download-card">
-      <h2>Download Result</h2>
-      <button id="pdf" class="secondary">PDF REPORT</button>
-      <button id="geotiff" class="secondary" disabled>DOWNLOAD GEOTIFF</button>
-    </section>
+    <section class="aoi-card"><h2>AOI</h2><p class="helper">Draw a polygon/rectangle, or upload a Shapefile ZIP.</p><input id="shp-upload" type="file" accept=".zip,application/zip"><p id="upload-status" class="upload-status">Required: .shp + .shx + .dbf + .prj inside the ZIP. Max 20 MB.</p></section>
+    <button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
+    <section class="download-card"><h2>Download Result</h2><button id="pdf" class="secondary">PDF REPORT</button><button id="geotiff" class="secondary" disabled>DOWNLOAD GEOTIFF</button></section>
     <p id="status">Draw a polygon or rectangle on the map.</p>
-
-    <section id="results" hidden>
-      <div class="result-heading"><h2>Result</h2><span id="level" class="level-badge">—</span></div>
-      <strong id="value">—</strong><span id="unit">mol/m²</span>
-      <p>Images: <b id="images">—</b></p><p id="dates"></p><p id="classification"></p><p id="thresholds" class="thresholds"></p><p id="note" class="note"></p>
-      <button id="show-chart" class="secondary chart-toggle" hidden>SHOW TIME SERIES</button>
-    </section>
-
-    <section class="legend-card">
-      <h2>Relative air-quality level</h2>
-      <div class="legend-row"><span class="dot good"></span> Good (low)</div>
-      <div class="legend-row"><span class="dot moderate"></span> Moderate</div>
-      <div class="legend-row"><span class="dot high"></span> High</div>
-      <p>Classes are relative to the selected AOI and period. They are not direct ISPU or ground-level health-standard classes.</p>
-    </section>
+    <section id="results" hidden><div class="result-heading"><h2>Result</h2><span id="level" class="level-badge">—</span></div><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="classification"></p><p id="thresholds" class="thresholds"></p><p id="note" class="note"></p><button id="show-chart" class="secondary chart-toggle" hidden>SHOW TIME SERIES</button></section>
+    <section class="legend-card"><h2>Relative air-quality level</h2><div class="legend-row"><span class="dot good"></span> Good (low)</div><div class="legend-row"><span class="dot moderate"></span> Moderate</div><div class="legend-row"><span class="dot high"></span> High</div><p>Classes are relative to the selected AOI and period. They are not direct ISPU or ground-level health-standard classes.</p></section>
   </aside>
 
   <main id="map"></main>
 
-  <button id="info-toggle" class="map-info-button" type="button" aria-label="Open WebGIS information" aria-expanded="false" title="WebGIS Information">i</button>
-  <section id="info-panel" class="info-panel" hidden aria-label="WebGIS tutorial">
-    <div class="info-header">
-      <div><div class="info-eyebrow">WEBGIS • REMOTE SENSING</div><h2>WebGIS Air Pollution</h2><p>Information &amp; tutorial penggunaan</p></div>
-      <button id="info-close" class="info-close" type="button" aria-label="Close information">×</button>
-    </div>
-    <div class="info-content">
-      <p class="intro">WebGIS ini digunakan untuk mengeksplorasi <b>Carbon Monoxide (CO)</b> berbasis citra satelit <b>Sentinel-5P</b> melalui <b>Google Earth Engine</b>.</p>
-      <h3>Cara menggunakan</h3>
-      <ol>
-        <li>Pilih <b>Module</b> dan <b>Variable</b> yang tersedia.</li>
-        <li>Tentukan <b>Start</b> dan <b>End</b> date untuk periode analisis.</li>
-        <li>Pilih <b>Spatial aggregation</b>: Mean, Median, Minimum, atau Maximum.</li>
-        <li>Gunakan toolbar gambar pada peta untuk membuat <b>AOI</b> berupa polygon atau rectangle.</li>
-        <li>Klik <b>RUN ANALYSIS</b> untuk menjalankan analisis pada AOI terpilih.</li>
-        <li>Hasil statistik dan raster CO akan muncul pada peta serta panel <b>Result</b>.</li>
-        <li>Klik <b>CLEAR AOI</b> untuk menghapus area dan membuat analisis baru.</li>
-      </ol>
-      <div class="info-note"><b>Catatan interpretasi:</b> nilai CO yang ditampilkan adalah <i>satellite column number density</i> dalam mol/m², bukan konsentrasi CO langsung di permukaan tanah dan bukan indeks ISPU.</div>
-    </div>
+  <section id="infoModal" class="info-modal" hidden aria-label="WebGIS tutorial">
+    <div class="info-backdrop" id="infoBackdrop"></div>
+    <section class="info-card" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="info-head"><div class="info-title-wrap"><p class="info-eyebrow">WEBGIS • REMOTE SENSING</p><h2 id="infoTitle">WebGIS Air Pollution</h2><p>Information &amp; tutorial penggunaan</p></div><button id="closeInfoBtn" class="icon-btn info-close" type="button" aria-label="Close information">×</button></div>
+      <div class="info-body">
+        <p class="info-intro">WebGIS ini digunakan untuk mengeksplorasi <b>Carbon Monoxide (CO)</b> berbasis citra satelit <b>Sentinel-5P</b> melalui <b>Google Earth Engine</b>.</p>
+        <h3>Cara menggunakan</h3>
+        <ol>
+          <li><b>Pilih Module dan Variable.</b> Pilih parameter polusi yang tersedia untuk dianalisis.</li>
+          <li><b>Tentukan Start dan End.</b> Masukkan periode waktu analisis yang diinginkan.</li>
+          <li><b>Pilih Spatial aggregation.</b> Gunakan Mean, Median, Minimum, atau Maximum sesuai kebutuhan.</li>
+          <li><b>Buat AOI.</b> Gunakan toolbar gambar Leaflet pada peta untuk membuat polygon atau rectangle.</li>
+          <li><b>Jalankan analisis.</b> Klik <b>RUN ANALYSIS</b> untuk memproses AOI dengan Google Earth Engine.</li>
+          <li><b>Baca hasil.</b> Statistik, jumlah citra, klasifikasi relatif, dan raster akan ditampilkan pada WebGIS.</li>
+          <li><b>Mulai analisis baru.</b> Klik <b>CLEAR AOI</b>, lalu gambar AOI baru dan jalankan kembali.</li>
+        </ol>
+        <div class="info-note"><b>Catatan penting:</b> nilai CO adalah <i>satellite column number density</i> dalam mol/m². Nilai ini bukan konsentrasi CO langsung di permukaan tanah dan bukan indeks ISPU.</div>
+      </div>
+    </section>
   </section>
 
-  <div id="chart-panel" class="chart-panel" hidden>
-    <div class="chart-header"><div><h2 id="chart-title">Pollutant time series</h2><p id="chart-subtitle">Monthly mean over the selected AOI</p></div><button id="close-chart" class="chart-close" type="button" aria-label="Hide time series">×</button></div>
-    <canvas id="time-series-chart"></canvas>
-  </div>
+  <div id="chart-panel" class="chart-panel" hidden><div class="chart-header"><div><h2 id="chart-title">Pollutant time series</h2><p id="chart-subtitle">Monthly mean over the selected AOI</p></div><button id="close-chart" class="chart-close" type="button" aria-label="Hide time series">×</button></div><canvas id="time-series-chart"></canvas></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <script src="/js/app.js?v=3"></script>
+  <script src="/js/app.js?v=4"></script>
   <script>
-    const infoToggle=document.getElementById('info-toggle');
-    const infoPanel=document.getElementById('info-panel');
-    const infoClose=document.getElementById('info-close');
-    function setInfo(open){infoPanel.hidden=!open;infoToggle.setAttribute('aria-expanded',String(open));}
-    infoToggle.addEventListener('click',()=>setInfo(infoPanel.hidden));
-    infoClose.addEventListener('click',()=>setInfo(false));
+    const infoModal=document.getElementById('infoModal');
+    const infoBtn=document.getElementById('infoBtn');
+    const closeInfoBtn=document.getElementById('closeInfoBtn');
+    const infoBackdrop=document.getElementById('infoBackdrop');
+    function setInfo(open){infoModal.hidden=!open;document.body.classList.toggle('info-open',open);}
+    infoBtn.addEventListener('click',()=>setInfo(true));
+    closeInfoBtn.addEventListener('click',()=>setInfo(false));
+    infoBackdrop.addEventListener('click',()=>setInfo(false));
     document.addEventListener('keydown',e=>{if(e.key==='Escape')setInfo(false)});
   </script>
 </body>
