@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from backend.modules.air_pollution.co import analyze_co
 
-app = FastAPI(title='GeoAI Remote Sensing WebGIS', version='0.1.0')
+app = FastAPI(title='WebGIS Remote Sensing', version='0.1.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
 class AnalysisRequest(BaseModel):
