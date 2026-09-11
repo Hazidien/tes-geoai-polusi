@@ -19,7 +19,7 @@ from reportlab.lib import colors
 
 from backend.modules.air_pollution.co import analyze_co, build_co_image
 
-app = FastAPI(title='WebGIS Remote Sensing', version='0.3.0')
+app = FastAPI(title='WebGIS Remote Sensing', version='0.3.1')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -78,11 +78,7 @@ def export_geotiff(request: AnalysisRequest):
             'format': 'GEO_TIFF',
             'maxPixels': 1e8,
         })
-        return {
-            'success': True,
-            'download_url': url,
-            'filename': f'CO_{request.start_date}_{request.end_date}.tif',
-        }
+        return {'success': True, 'download_url': url, 'filename': f'CO_{request.start_date}_{request.end_date}.tif'}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'GeoTIFF export failed: {exc}') from exc
 
@@ -92,50 +88,27 @@ def report_pdf(request: AnalysisRequest):
     try:
         result = analyze_co(request.model_dump())
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, pagesize=A4, rightMargin=42, leftMargin=42,
-            topMargin=42, bottomMargin=42,
-        )
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=42, leftMargin=42, topMargin=42, bottomMargin=42)
         styles = getSampleStyleSheet()
-        story = [
-            Paragraph('WebGIS Air Pollution — Analysis Report', styles['Title']),
-            Spacer(1, 12),
-        ]
+        story = [Paragraph('WebGIS Air Pollution — Analysis Report', styles['Title']), Spacer(1, 12)]
         rows = [
-            ['Module', result['module']],
-            ['Variable', result['variable']],
-            ['Dataset', result['dataset']],
-            ['Period', f"{result['start_date']} → {result['end_date']}"],
-            ['Aggregation', result['aggregation'].title()],
-            ['Statistic', f"{result['value']:.6e} {result['unit']}"],
-            ['Images', str(result['image_count'])],
+            ['Module', result['module']], ['Variable', result['variable']], ['Dataset', result['dataset']],
+            ['Period', f"{result['start_date']} → {result['end_date']}"], ['Aggregation', result['aggregation'].title()],
+            ['Statistic', f"{result['value']:.6e} {result['unit']}"], ['Images', str(result['image_count'])],
         ]
         table = Table(rows, colWidths=[110, 350])
         table.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('BACKGROUND', (0, 0), (0, -1), colors.whitesmoke),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey), ('BACKGROUND', (0, 0), (0, -1), colors.whitesmoke),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('PADDING', (0, 0), (-1, -1), 7),
         ]))
-        story += [
-            table,
-            Spacer(1, 14),
-            Paragraph(
-                'Interpretation note: CO is satellite column number density, '
-                'not a direct ground-level concentration or ISPU value.',
-                styles['BodyText'],
-            ),
-        ]
+        story += [table, Spacer(1, 14), Paragraph(
+            'Interpretation note: CO is satellite column number density, not a direct ground-level concentration or ISPU value.',
+            styles['BodyText'])]
         doc.build(story)
         buffer.seek(0)
-        return StreamingResponse(
-            buffer,
-            media_type='application/pdf',
-            headers={
-                'Content-Disposition':
-                    f'attachment; filename=CO_report_{request.start_date}_{request.end_date}.pdf'
-            },
-        )
+        return StreamingResponse(buffer, media_type='application/pdf', headers={
+            'Content-Disposition': f'attachment; filename=CO_report_{request.start_date}_{request.end_date}.pdf'
+        })
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'PDF report generation failed: {exc}') from exc
 
@@ -161,44 +134,32 @@ def upload_geotiff(file: UploadFile = File(...)):
             bounds = list(transform_bounds(src.crs, 'EPSG:4326', *bounds_native))
             width, height, count = src.width, src.height, src.count
             dtype, nodata = src.dtypes[0], src.nodata
+            preview = src.read(out_shape=(min(3, count), min(800, height), min(800, width)))
 
-            preview = src.read(
-                out_shape=(min(3, count), min(800, height), min(800, width))
-            )
-            arr = preview[0] if preview.shape[0] == 1 else preview.transpose(1, 2, 0)
-            import numpy as np
-            arr = np.asarray(arr, dtype='float32')
-            finite = arr[np.isfinite(arr)]
-            lo, hi = (
-                (float(np.percentile(finite, 2)), float(np.percentile(finite, 98)))
-                if finite.size else (0.0, 1.0)
-            )
-            if hi <= lo:
-                hi = lo + 1.0
-            arr = np.clip((arr - lo) / (hi - lo) * 255, 0, 255).astype('uint8')
-            if arr.ndim == 2:
+        import numpy as np
+        arr = preview[0] if preview.shape[0] == 1 else preview.transpose(1, 2, 0)
+        arr = np.asarray(arr, dtype='float32')
+        finite = arr[np.isfinite(arr)]
+        lo, hi = ((float(np.percentile(finite, 2)), float(np.percentile(finite, 98))) if finite.size else (0.0, 1.0))
+        if hi <= lo:
+            hi = lo + 1.0
+        arr = np.clip((arr - lo) / (hi - lo) * 255, 0, 255).astype('uint8')
+        if arr.ndim == 2:
+            img = Image.fromarray(arr, 'L')
+        else:
+            if arr.shape[2] == 2:
+                arr = arr[:, :, 0]
                 img = Image.fromarray(arr, 'L')
             else:
-                if arr.shape[2] == 2:
-                    arr = arr[:, :, :1]
                 if arr.shape[2] > 3:
                     arr = arr[:, :, :3]
                 img = Image.fromarray(arr)
 
-            preview_path = UPLOAD_DIR / f'{file_id}.png'
-            img.save(preview_path, 'PNG')
-
+        preview_path = UPLOAD_DIR / f'{file_id}.png'
+        img.save(preview_path, 'PNG')
         return {
-            'success': True,
-            'id': file_id,
-            'filename': file.filename,
-            'crs': crs,
-            'bounds': bounds,
-            'width': width,
-            'height': height,
-            'bands': count,
-            'dtype': dtype,
-            'nodata': nodata,
+            'success': True, 'id': file_id, 'filename': file.filename, 'crs': crs, 'bounds': bounds,
+            'width': width, 'height': height, 'bands': count, 'dtype': dtype, 'nodata': nodata,
             'preview_url': f'/api/upload/geotiff/{file_id}/preview',
         }
     except HTTPException:
