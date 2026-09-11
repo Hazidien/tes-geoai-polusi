@@ -1,5 +1,5 @@
 const map=L.map('map').setView([-7.25,112.75],11);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
 map.pm.addControls({position:'topleft',drawPolygon:true,drawRectangle:true,drawCircle:false,drawMarker:false,drawCircleMarker:false,drawPolyline:false,editMode:true,dragMode:false,cutPolygon:false,removalMode:true});
 let aoiLayer=null,resultLayer=null,uploadedLayer=null,lastRequest=null;
 map.on('pm:create',e=>{if(aoiLayer)map.removeLayer(aoiLayer);aoiLayer=e.layer;aoiLayer.addTo(map);document.getElementById('status').textContent='AOI ready. Click RUN ANALYSIS.';});
