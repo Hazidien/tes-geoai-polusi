@@ -78,7 +78,7 @@ def gee_status():
 def analyze(request:AnalysisRequest):
     validate_request(request);data=payload(request);key=cache_key(data)
     try:
-        result=analyze_pollutant(data);ANALYSIS_CACHE[key]={'request':data,'result':result};return result
+        result=analyze_pollutant(data);entry=ANALYSIS_CACHE.setdefault(key,{'request':data});entry['result']=result;return result
     except Exception as exc: error_response('GEE processing failed',exc)
 
 @app.post('/api/chart')
