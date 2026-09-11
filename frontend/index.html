@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WebGIS Analisis Polusi Udara — Hazidien</title>
+<title>WebGIS Air Pollution Analysis — Hazidien Ramadhan Utomo</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
 <aside>
@@ -46,38 +46,38 @@
 <main id="map"></main>
 <button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="Information"><span class="info-icon">i</span></button>
 <div id="info-panel" class="info-panel" hidden>
-  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information & Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div>
+  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div>
   <div class="info-content">
-    <h3>Tujuan WebGIS</h3><p>WebGIS ini digunakan untuk memetakan dan menganalisis variasi spasial serta temporal Carbon Monoxide (CO) dari Sentinel-5P pada AOI yang dipilih.</p>
-    <h3>1. Pilih periode</h3><p>Gunakan Start date dan End date. Keduanya adalah tanggal awal dan akhir periode analisis.</p>
-    <h3>2. Tentukan interval grafik</h3><p>Pilih Daily mean untuk seri harian atau Monthly mean untuk seri bulanan.</p>
-    <h3>3. Buat AOI</h3><p>Gunakan toolbar kiri atas untuk Polygon atau Rectangle. Hanya satu AOI aktif.</p>
-    <h3>4. Jalankan satu analisis</h3><p>Pilih metode Mean, Median, Minimum, atau Maximum. Hanya metode yang dipilih yang dijalankan.</p>
-    <h3>5. Baca grafik & unduh</h3><p>Grafik time series dapat dibuka/tutup. PDF berisi peta hasil, parameter analisis, statistik, dan penjelasan.</p>
-    <div class="info-note"><b>Catatan penting:</b> nilai CO pada aplikasi merepresentasikan <i>satellite column number density</i> dalam mol/m², bukan konsentrasi permukaan/ISPU.</div>
+    <h3>WebGIS Purpose</h3><p>This WebGIS is designed to map and analyze the spatial and temporal variation of Carbon Monoxide (CO) from Sentinel-5P over a user-selected Area of Interest (AOI).</p>
+    <h3>1. Select the period</h3><p>Set the Start date and End date. These define the beginning and end of the analysis period.</p>
+    <h3>2. Select the chart interval</h3><p>Choose Daily mean for a daily time series or Monthly mean for a monthly time series.</p>
+    <h3>3. Create an AOI</h3><p>Use the drawing toolbar on the upper-left of the map to create a Polygon or Rectangle. Only one AOI is active at a time.</p>
+    <h3>4. Run one analysis</h3><p>Select Mean, Median, Minimum, or Maximum. Only the selected spatial aggregation method is executed.</p>
+    <h3>5. View the chart &amp; download</h3><p>The time-series chart can be opened and closed. The PDF report contains the analysis map, parameters, statistics, time series, and interpretation notes.</p>
+    <div class="info-note"><b>Important:</b> CO values in this application represent <i>satellite column number density</i> in mol/m², not ground-level concentration or an ISPU value.</div>
   </div>
 </div>
 <div id="welcome-modal" class="modal-backdrop">
   <div class="welcome-card">
-    <button id="welcome-close" class="modal-close" type="button" aria-label="Tutup">×</button>
-    <div class="welcome-kicker">WEBGIS ANALISIS POLUSI UDARA</div>
-    <h2>Selamat datang di WebGIS Sentinel-5P</h2>
-    <p class="welcome-name">Dikembangkan oleh <b>Hazidien</b></p>
-    <p>WebGIS ini bertujuan membantu eksplorasi spasial dan temporal Carbon Monoxide (CO) menggunakan data Sentinel-5P pada area yang dipilih pengguna.</p>
-    <div class="welcome-grid"><div><b>01</b><span>Pilih tanggal</span></div><div><b>02</b><span>Gambar AOI</span></div><div><b>03</b><span>Jalankan analisis</span></div><div><b>04</b><span>Lihat grafik & laporan</span></div></div>
-    <div class="info-note"><b>Perhatian:</b> hasil adalah data kolom atmosfer satelit dan tidak boleh dianggap sebagai pengukuran langsung kualitas udara di permukaan.</div>
-    <button id="start-app" class="primary-modal-button">MULAI WEBGIS</button>
+    <button id="welcome-close" class="modal-close" type="button" aria-label="Close">×</button>
+    <div class="welcome-kicker">WEBGIS AIR POLLUTION ANALYSIS</div>
+    <h2>Welcome to the Sentinel-5P WebGIS</h2>
+    <p class="welcome-name">Developed by <b>Hazidien Ramadhan Utomo</b></p>
+    <p>This WebGIS is designed to support spatial and temporal exploration of Carbon Monoxide (CO) using Sentinel-5P data over an area selected by the user.</p>
+    <div class="welcome-grid"><div><b>01</b><span>Select dates</span></div><div><b>02</b><span>Draw an AOI</span></div><div><b>03</b><span>Run the analysis</span></div><div><b>04</b><span>View chart &amp; report</span></div></div>
+    <div class="info-note"><b>Important:</b> The result represents satellite atmospheric column data and should not be interpreted as a direct measurement of ground-level air quality.</div>
+    <button id="start-app" class="primary-modal-button">START WEBGIS</button>
   </div>
 </div>
 <div id="chart-panel" class="chart-panel" hidden>
-  <div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Carbon Monoxide (CO) time series</h2><p id="chart-subtitle">Mean over selected AOI · mol/m²</p></div><button id="chart-close" class="chart-close" type="button" aria-label="Tutup chart">×</button></div>
+  <div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Carbon Monoxide (CO) time series</h2><p id="chart-subtitle">Mean over selected AOI · mol/m²</p></div><button id="chart-close" class="chart-close" type="button" aria-label="Close chart">×</button></div>
   <div class="chart-toolbar"><span id="chart-period">—</span><span id="chart-method">—</span></div>
   <div class="chart-wrap"><canvas id="timeseries-chart"></canvas></div>
-  <div id="chart-empty" class="chart-empty" hidden>Belum ada data time series.</div>
+  <div id="chart-empty" class="chart-empty" hidden>No time-series data available.</div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/app.js?v=13"></script>
 </body>
 </html>
