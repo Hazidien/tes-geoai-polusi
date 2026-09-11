@@ -5,7 +5,7 @@
 <title>WebGIS Air Pollution</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 <aside><div class="sidebar-header"><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div>
@@ -19,7 +19,7 @@
 <p id="status" class="status">Draw an AOI on the map.</p>
 <section id="results" hidden><h2>Analysis Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p><div class="result-actions"><button id="download-tif">DOWNLOAD GEOTIFF</button><button id="download-pdf">DOWNLOAD PDF REPORT</button></div></section></aside>
 <main id="map"></main>
-<button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="Information">i</button>
+<button id="info-toggle" class="info-button" type="button" aria-label="Open Information and Tutorial" aria-expanded="false" title="Information & Tutorial"><span class="info-icon">i</span><span>Information</span></button>
 <div id="info-panel" class="info-panel" hidden><div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div><div class="info-content"><h3>1. Tentukan area</h3><p>Gunakan toolbar di kiri atas peta untuk membuat <b>Polygon</b> atau <b>Rectangle</b>. Hanya satu AOI aktif pada satu waktu.</p><h3>2. Tentukan periode</h3><p>Pilih <b>Start</b> dan <b>End</b>. Tanggal End harus lebih besar dari Start.</p><h3>3. Jalankan analisis</h3><p>Pilih <b>Mean, Median, Minimum</b>, atau <b>Maximum</b>, lalu klik <b>RUN ANALYSIS</b>.</p><h3>4. GeoTIFF</h3><p>Unggah GeoTIFF yang memiliki CRS/georeferensi. Hasil analisis dapat diunduh sebagai GeoTIFF.</p><h3>5. PDF</h3><p>Setelah analisis berhasil, klik <b>DOWNLOAD PDF REPORT</b> untuk membuat laporan ringkas.</p><div class="info-note"><b>Catatan:</b> CO adalah <i>satellite column number density</i> dalam mol/m², bukan konsentrasi CO permukaan atau ISPU.</div><h3>Jika analisis gagal</h3><p>Pastikan <b>GEE_PROJECT_ID</b> dan <b>GOOGLE_APPLICATION_CREDENTIALS</b> sudah dikonfigurasi di Codespace.</p></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="js/app.js?v=4"></script>
 </body></html>
