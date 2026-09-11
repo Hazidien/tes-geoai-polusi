@@ -6,78 +6,25 @@
 <title>WebGIS Air Pollution Analysis — Hazidien Ramadhan Utomo</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=13">
+<link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
 <aside>
-  <div class="sidebar-header">
-    <div>
-      <div class="brand-kicker">WEBGIS · REMOTE SENSING</div>
-      <h1>WebGIS Analysis</h1>
-      <div class="subtitle">Air Pollution · Sentinel-5P</div>
-    </div>
-  </div>
+  <div class="sidebar-header"><div><div class="brand-kicker">WEBGIS · REMOTE SENSING</div><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div></div>
   <label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
-  <label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
-  <div class="dates">
-    <label>Start date<input id="start" type="date" value="2025-01-01"></label>
-    <label>End date<input id="end" type="date" value="2025-01-31"></label>
-  </div>
-  <label>Time series interval
-    <select id="interval"><option value="month">Monthly mean</option><option value="day">Daily mean</option></select>
-  </label>
-  <label>Spatial aggregation
-    <select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select>
-  </label>
+  <label>Variable<select id="variable"><option value="SO2">Sulfur Dioxide (SO2)</option><option value="NO2">Nitrogen Dioxide (NO2)</option><option value="CO" selected>Carbon Monoxide (CO)</option><option value="CH4">Methane (CH4)</option></select></label>
+  <div class="dates"><label>Start date<input id="start" type="date" value="2025-01-01"></label><label>End date<input id="end" type="date" value="2025-01-31"></label></div>
+  <label>Time series interval<select id="interval"><option value="month">Monthly mean</option><option value="day">Daily mean</option></select></label>
+  <label>Spatial aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
   <section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw one Polygon or Rectangle. A new drawing replaces the previous AOI.</p></section>
   <button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
-  <section id="results" class="result-card" hidden>
-    <div class="result-heading"><h2>Result</h2><span id="severity">—</span></div>
-    <strong id="value">—</strong><span id="unit">mol/m²</span>
-    <p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p>
-    <div class="result-actions">
-      <button id="open-chart" class="chart-button">OPEN TIME SERIES</button>
-      <button id="download-tif">DOWNLOAD GEOTIFF</button>
-      <button id="download-pdf">DOWNLOAD PDF REPORT</button>
-    </div>
-  </section>
+  <section id="results" class="result-card" hidden><div class="result-heading"><h2>Result</h2><span id="severity">Relative</span></div><strong id="value">—</strong><span id="unit">—</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p><div class="result-actions"><button id="open-chart" class="chart-button">OPEN TIME SERIES</button><button id="download-tif">DOWNLOAD GEOTIFF</button><button id="download-pdf">DOWNLOAD PDF REPORT</button></div></section>
   <p id="status" class="status">Draw an AOI on the map.</p>
 </aside>
 <main id="map"></main>
 <button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="Information"><span class="info-icon">i</span></button>
-<div id="info-panel" class="info-panel" hidden>
-  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div>
-  <div class="info-content">
-    <h3>WebGIS Purpose</h3><p>This WebGIS is designed to map and analyze the spatial and temporal variation of Carbon Monoxide (CO) from Sentinel-5P over a user-selected Area of Interest (AOI).</p>
-    <h3>1. Select the period</h3><p>Set the Start date and End date. These define the beginning and end of the analysis period.</p>
-    <h3>2. Select the chart interval</h3><p>Choose Daily mean for a daily time series or Monthly mean for a monthly time series.</p>
-    <h3>3. Create an AOI</h3><p>Use the drawing toolbar on the upper-left of the map to create a Polygon or Rectangle. Only one AOI is active at a time.</p>
-    <h3>4. Run one analysis</h3><p>Select Mean, Median, Minimum, or Maximum. Only the selected spatial aggregation method is executed.</p>
-    <h3>5. View the chart &amp; download</h3><p>The time-series chart can be opened and closed. The PDF report contains the analysis map, parameters, statistics, time series, and interpretation notes.</p>
-    <div class="info-note"><b>Important:</b> CO values in this application represent <i>satellite column number density</i> in mol/m², not ground-level concentration or an ISPU value.</div>
-  </div>
-</div>
-<div id="welcome-modal" class="modal-backdrop">
-  <div class="welcome-card">
-    <button id="welcome-close" class="modal-close" type="button" aria-label="Close">×</button>
-    <div class="welcome-kicker">WEBGIS AIR POLLUTION ANALYSIS</div>
-    <h2>Welcome to the Sentinel-5P WebGIS</h2>
-    <p class="welcome-name">Developed by <b>Hazidien Ramadhan Utomo</b></p>
-    <p>This WebGIS is designed to support spatial and temporal exploration of Carbon Monoxide (CO) using Sentinel-5P data over an area selected by the user.</p>
-    <div class="welcome-grid"><div><b>01</b><span>Select dates</span></div><div><b>02</b><span>Draw an AOI</span></div><div><b>03</b><span>Run the analysis</span></div><div><b>04</b><span>View chart &amp; report</span></div></div>
-    <div class="info-note"><b>Important:</b> The result represents satellite atmospheric column data and should not be interpreted as a direct measurement of ground-level air quality.</div>
-    <button id="start-app" class="primary-modal-button">START WEBGIS</button>
-  </div>
-</div>
-<div id="chart-panel" class="chart-panel" hidden>
-  <div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Carbon Monoxide (CO) time series</h2><p id="chart-subtitle">Mean over selected AOI · mol/m²</p></div><button id="chart-close" class="chart-close" type="button" aria-label="Close chart">×</button></div>
-  <div class="chart-toolbar"><span id="chart-period">—</span><span id="chart-method">—</span></div>
-  <div class="chart-wrap"><canvas id="timeseries-chart"></canvas></div>
-  <div id="chart-empty" class="chart-empty" hidden>No time-series data available.</div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="js/app.js?v=13"></script>
-</body>
-</html>
+<div id="info-panel" class="info-panel" hidden><div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P</p></div><button id="info-close" class="info-close" type="button">×</button></div><div class="info-content"><h3>WebGIS Purpose</h3><p>This WebGIS is designed to map and analyze the spatial and temporal variation of Sentinel-5P air-pollution observations over a user-selected Area of Interest (AOI).</p><h3>Available variables</h3><p>Four pollutant analyses are available: Sulfur Dioxide (SO2), Nitrogen Dioxide (NO2), Carbon Monoxide (CO), and Methane (CH4), following the supplied Geoaccess training reference.</p><h3>1. Select the period</h3><p>Set the Start date and End date.</p><h3>2. Select the chart interval</h3><p>Choose Daily mean or Monthly mean.</p><h3>3. Create an AOI</h3><p>Draw a Polygon or Rectangle. Only one AOI is active at a time.</p><h3>4. Run one analysis</h3><p>Only the selected pollutant and selected spatial aggregation method are executed.</p><h3>5. View the chart &amp; download</h3><p>The time-series chart can be opened and closed. The PDF report contains the analysis map, parameters, time series, and explanation.</p><div class="info-note"><b>Important:</b> Sentinel-5P measurements are atmospheric observations and should not be interpreted as direct ground-station measurements or ISPU values.</div></div></div>
+<div id="welcome-modal" class="modal-backdrop"><div class="welcome-card"><button id="welcome-close" class="modal-close" type="button" aria-label="Close">×</button><div class="welcome-kicker">WEBGIS AIR POLLUTION ANALYSIS</div><h2>Welcome to the Sentinel-5P WebGIS</h2><p class="welcome-name">Developed by <b>Hazidien Ramadhan Utomo</b></p><p>This WebGIS supports spatial and temporal exploration of SO2, NO2, CO, and CH4 using Sentinel-5P data over a user-selected area.</p><div class="welcome-grid"><div><b>01</b><span>Select pollutant &amp; dates</span></div><div><b>02</b><span>Draw an AOI</span></div><div><b>03</b><span>Run one analysis</span></div><div><b>04</b><span>View chart &amp; report</span></div></div><div class="info-note"><b>Important:</b> Results are satellite atmospheric observations; unit handling follows the supplied training reference.</div><button id="start-app" class="primary-modal-button">START WEBGIS</button></div></div>
+<div id="chart-panel" class="chart-panel" hidden><div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Air-pollution time series</h2><p id="chart-subtitle">Selected variable · selected AOI</p></div><button id="chart-close" class="chart-close" type="button" aria-label="Close chart">×</button></div><div class="chart-toolbar"><span id="chart-period">—</span><span id="chart-method">—</span></div><div class="chart-wrap"><canvas id="timeseries-chart"></canvas></div><div id="chart-empty" class="chart-empty" hidden>No time-series data available.</div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script><script src="js/app.js?v=14"></script>
+</body></html>
