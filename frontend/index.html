@@ -1,25 +1,83 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WebGIS Air Pollution</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WebGIS Analisis Polusi Udara — Hazidien</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
-<aside><div class="sidebar-header"><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div>
-<label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
-<label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
-<div class="dates"><label>Start<input id="start" type="date" value="2026-01-01"></label><label>End<input id="end" type="date" value="2026-03-31"></label></div>
-<label>Spatial aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
-<section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw one polygon or rectangle on the map. A new drawing replaces the previous AOI.</p></section>
-<button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
-<section class="file-section"><h2>GeoTIFF</h2><input id="geotiff" type="file" accept=".tif,.tiff,image/tiff"><button id="upload">UPLOAD GEOTIFF</button><p id="upload-status" class="status">Upload raster GeoTIFF untuk melihat metadata dan preview.</p></section>
-<p id="status" class="status">Draw an AOI on the map.</p>
-<section id="results" hidden><h2>Analysis Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p><div class="result-actions"><button id="download-tif">DOWNLOAD GEOTIFF</button><button id="download-pdf">DOWNLOAD PDF REPORT</button></div></section></aside>
+<aside>
+  <div class="sidebar-header">
+    <div>
+      <div class="brand-kicker">WEBGIS · REMOTE SENSING</div>
+      <h1>WebGIS Analysis</h1>
+      <div class="subtitle">Air Pollution · Sentinel-5P</div>
+    </div>
+  </div>
+  <label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
+  <label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
+  <div class="dates">
+    <label>Start date<input id="start" type="date" value="2025-01-01"></label>
+    <label>End date<input id="end" type="date" value="2025-01-31"></label>
+  </div>
+  <label>Time series interval
+    <select id="interval"><option value="month">Monthly mean</option><option value="day">Daily mean</option></select>
+  </label>
+  <label>Spatial aggregation
+    <select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select>
+  </label>
+  <section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw one Polygon or Rectangle. A new drawing replaces the previous AOI.</p></section>
+  <button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
+  <section id="results" class="result-card" hidden>
+    <div class="result-heading"><h2>Result</h2><span id="severity">—</span></div>
+    <strong id="value">—</strong><span id="unit">mol/m²</span>
+    <p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p>
+    <div class="result-actions">
+      <button id="open-chart" class="chart-button">OPEN TIME SERIES</button>
+      <button id="download-tif">DOWNLOAD GEOTIFF</button>
+      <button id="download-pdf">DOWNLOAD PDF REPORT</button>
+    </div>
+  </section>
+  <p id="status" class="status">Draw an AOI on the map.</p>
+</aside>
 <main id="map"></main>
-<button id="info-toggle" class="info-button" type="button" aria-label="Open Information and Tutorial" aria-expanded="false" title="Information & Tutorial"><span class="info-icon">i</span><span>Information</span></button>
-<div id="info-panel" class="info-panel" hidden><div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div><div class="info-content"><h3>1. Tentukan area</h3><p>Gunakan toolbar kiri atas untuk membuat Polygon atau Rectangle. Hanya satu AOI aktif pada satu waktu.</p><h3>2. Tentukan periode</h3><p>Pilih Start dan End. Tanggal End harus lebih besar dari Start.</p><h3>3. Jalankan analisis</h3><p>Pilih satu metode: Mean, Median, Minimum, atau Maximum. Hanya metode yang dipilih yang dijalankan.</p><h3>4. GeoTIFF</h3><p>Unggah GeoTIFF ber-CRS/georeferensi untuk melihat metadata dan preview. Ekspor hasil tersedia setelah analisis GEE berhasil.</p><h3>5. PDF</h3><p>Setelah analisis berhasil, klik DOWNLOAD PDF REPORT.</p><div class="info-note"><b>Catatan:</b> CO adalah satellite column number density dalam mol/m², bukan konsentrasi CO permukaan atau ISPU.</div></div></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="js/app.js?v=6"></script>
-</body></html>
+<button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="Information"><span class="info-icon">i</span></button>
+<div id="info-panel" class="info-panel" hidden>
+  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information & Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div>
+  <div class="info-content">
+    <h3>Tujuan WebGIS</h3><p>WebGIS ini digunakan untuk memetakan dan menganalisis variasi spasial serta temporal Carbon Monoxide (CO) dari Sentinel-5P pada AOI yang dipilih.</p>
+    <h3>1. Pilih periode</h3><p>Gunakan Start date dan End date. Keduanya adalah tanggal awal dan akhir periode analisis.</p>
+    <h3>2. Tentukan interval grafik</h3><p>Pilih Daily mean untuk seri harian atau Monthly mean untuk seri bulanan.</p>
+    <h3>3. Buat AOI</h3><p>Gunakan toolbar kiri atas untuk Polygon atau Rectangle. Hanya satu AOI aktif.</p>
+    <h3>4. Jalankan satu analisis</h3><p>Pilih metode Mean, Median, Minimum, atau Maximum. Hanya metode yang dipilih yang dijalankan.</p>
+    <h3>5. Baca grafik & unduh</h3><p>Grafik time series dapat dibuka/tutup. PDF berisi peta hasil, parameter analisis, statistik, dan penjelasan.</p>
+    <div class="info-note"><b>Catatan penting:</b> nilai CO pada aplikasi merepresentasikan <i>satellite column number density</i> dalam mol/m², bukan konsentrasi permukaan/ISPU.</div>
+  </div>
+</div>
+<div id="welcome-modal" class="modal-backdrop">
+  <div class="welcome-card">
+    <button id="welcome-close" class="modal-close" type="button" aria-label="Tutup">×</button>
+    <div class="welcome-kicker">WEBGIS ANALISIS POLUSI UDARA</div>
+    <h2>Selamat datang di WebGIS Sentinel-5P</h2>
+    <p class="welcome-name">Dikembangkan oleh <b>Hazidien</b></p>
+    <p>WebGIS ini bertujuan membantu eksplorasi spasial dan temporal Carbon Monoxide (CO) menggunakan data Sentinel-5P pada area yang dipilih pengguna.</p>
+    <div class="welcome-grid"><div><b>01</b><span>Pilih tanggal</span></div><div><b>02</b><span>Gambar AOI</span></div><div><b>03</b><span>Jalankan analisis</span></div><div><b>04</b><span>Lihat grafik & laporan</span></div></div>
+    <div class="info-note"><b>Perhatian:</b> hasil adalah data kolom atmosfer satelit dan tidak boleh dianggap sebagai pengukuran langsung kualitas udara di permukaan.</div>
+    <button id="start-app" class="primary-modal-button">MULAI WEBGIS</button>
+  </div>
+</div>
+<div id="chart-panel" class="chart-panel" hidden>
+  <div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Carbon Monoxide (CO) time series</h2><p id="chart-subtitle">Mean over selected AOI · mol/m²</p></div><button id="chart-close" class="chart-close" type="button" aria-label="Tutup chart">×</button></div>
+  <div class="chart-toolbar"><span id="chart-period">—</span><span id="chart-method">—</span></div>
+  <div class="chart-wrap"><canvas id="timeseries-chart"></canvas></div>
+  <div id="chart-empty" class="chart-empty" hidden>Belum ada data time series.</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/app.js?v=12"></script>
+</body>
+</html>
