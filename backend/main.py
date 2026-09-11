@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 import io
 import tempfile
@@ -22,7 +22,7 @@ from reportlab.lib.units import mm
 from backend.aoi_upload import shapefile_zip_to_geojson
 from backend.modules.air_pollution.pollutants import get_config, analyze_pollutant, build_timeseries, download_image
 
-app=FastAPI(title='WebGIS Remote Sensing',version='0.6.0')
+app=FastAPI(title='WebGIS Remote Sensing',version='0.7.0')
 app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_headers=['*'])
 ROOT=Path(__file__).resolve().parent.parent
 FRONTEND_DIR=ROOT/'frontend'
@@ -45,8 +45,8 @@ def payload(request): return request.model_dump(mode='json')
 def validate_request(request):
     if request.module!='air_pollution': raise HTTPException(400,'Unsupported module. This WebGIS currently provides Air Pollution only.')
     if request.variable not in {'SO2','NO2','CO','CH4'}: raise HTTPException(400,'Unsupported air-pollution variable. Choose SO2, NO2, CO, or CH4.')
-    if request.end_date<=request.start_date: raise HTTPException(400,'End date must be after start date.')
-    if (request.end_date-request.start_date).days>366: raise HTTPException(400,'Maximum analysis period is 366 days.')
+    if request.end_date<request.start_date: raise HTTPException(400,'End date must be on or after start date.')
+    if (request.end_date-request.start_date).days>=366: raise HTTPException(400,'Maximum analysis period is 365 days.')
     if request.aoi.get('type') not in {'Polygon','MultiPolygon'}: raise HTTPException(400,'AOI must be a GeoJSON Polygon or MultiPolygon.')
     if request.aggregation not in {'mean','median','min','max'}: raise HTTPException(400,'Invalid spatial aggregation method.')
     if request.interval not in {'day','month'}: raise HTTPException(400,'Invalid time series interval.')
@@ -59,7 +59,7 @@ def error_response(prefix, exc):
 def frontend(): return FileResponse(FRONTEND_DIR/'index.html',headers={'Cache-Control':'no-store'})
 
 @app.get('/api/health')
-def health(): return {'status':'ok','application':'WebGIS Air Pollution','version':'0.6.0','variables':['SO2','NO2','CO','CH4']}
+def health(): return {'status':'ok','application':'WebGIS Air Pollution','version':'0.7.0','variables':['SO2','NO2','CO','CH4']}
 
 @app.post('/api/analyze')
 def analyze(request:AnalysisRequest):
@@ -81,6 +81,16 @@ def export_geotiff(request:AnalysisRequest):
         url=download_image(payload(request))
         return {'success':True,'download_url':url,'filename':f'{request.variable}_{request.start_date}_{request.end_date}.tif'}
     except Exception as exc: error_response('GeoTIFF export failed',exc)
+
+@app.post('/api/export/geotiff/download')
+def export_geotiff_download(request:AnalysisRequest):
+    validate_request(request)
+    try:
+        url=download_image(payload(request))
+        with urllib.request.urlopen(url,timeout=120) as response:
+            data=response.read()
+        return StreamingResponse(io.BytesIO(data),media_type='image/tiff',headers={'Content-Disposition':f'attachment; filename={request.variable}_{request.start_date}_{request.end_date}.tif','Content-Length':str(len(data))})
+    except Exception as exc: error_response('GeoTIFF download failed',exc)
 
 @app.post('/api/upload/aoi')
 def upload_aoi(file:UploadFile=File(...)):
@@ -134,14 +144,23 @@ def report_pdf(request:AnalysisRequest):
         data=payload(request);result=analyze_pollutant(data);series=build_timeseries(data);cfg=get_config(request.variable)
         from backend.modules.air_pollution.pollutants import build_image
         image,_=build_image(data)
-        thumb=image.getThumbURL({'region':request.aoi,'dimensions':900,'format':'png','min':cfg['min'],'max':cfg['max'],'palette':cfg['palette']})
-        map_bytes=urllib.request.urlopen(thumb,timeout=30).read();map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
+        map_bytes=None
+        try:
+            thumb=image.getThumbURL({'region':request.aoi,'dimensions':900,'format':'png','min':cfg['min'],'max':cfg['max'],'palette':cfg['palette']})
+            with urllib.request.urlopen(thumb,timeout=60) as response: map_bytes=response.read()
+        except Exception:
+            map_bytes=None
+        if map_bytes:
+            map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
         buffer=io.BytesIO();doc=SimpleDocTemplate(buffer,pagesize=A4,rightMargin=15*mm,leftMargin=15*mm,topMargin=14*mm,bottomMargin=14*mm)
         styles=getSampleStyleSheet();styles.add(ParagraphStyle(name='SmallNote',parent=styles['BodyText'],fontSize=8.5,leading=12,textColor=colors.HexColor('#475569')));styles.add(ParagraphStyle(name='SectionTitle',parent=styles['Heading2'],fontSize=13,leading=16,textColor=colors.HexColor('#0f2742'),spaceBefore=8,spaceAfter=6))
-        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph(cfg['name']+' — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of the selected Sentinel-5P pollutant over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8),RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Analysis map for the selected AOI.',styles['SmallNote']),Spacer(1,7),Paragraph('Analysis Parameters',styles['SectionTitle'])]
+        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph(cfg['name']+' — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of the selected Sentinel-5P pollutant over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8)]
+        if map_path: story += [RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Sentinel-5P analysis map for the selected AOI.',styles['SmallNote']),Spacer(1,7)]
+        else: story += [Paragraph('Map preview could not be embedded, but the analysis result and parameters are included below.',styles['SmallNote']),Spacer(1,7)]
+        story += [Paragraph('Analysis Parameters',styles['SectionTitle'])]
         rows=[['Module','Air Pollution'],['Variable',cfg['name']],['Dataset',cfg['dataset']],['Band',cfg['band']],['Period',f"{result['start_date']} → {result['end_date']}"],['Spatial aggregation',result['aggregation'].title()],['Time-series interval',request.interval.title()],['Images',str(result['image_count'])],['Statistic',f"{result['value']:.6e} {result['unit']}"]]
         table=Table(rows,colWidths=[48*mm,125*mm]);table.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.4,colors.HexColor('#cbd5e1')),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),('VALIGN',(0,0),(-1,-1),'TOP'),('PADDING',(0,0),(-1,-1),6),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold')]))
-        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series,request.variable,cfg['unit']),Spacer(1,7),Paragraph('Explanation',styles['SectionTitle']),Paragraph(f'The analysis follows the supplied training reference for Sentinel-5P {request.variable} processing: spatial/date filtering, temporal mean, regional aggregation, time-series charting, and raster export. The reported unit is {cfg["unit"]}.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> Satellite atmospheric observations are not direct ground-station measurements. Unit conversion follows the method described in the reference material where applicable.',styles['SmallNote']),Spacer(1,5),Paragraph('WebGIS purpose: to provide an interactive geospatial environment for exploring spatial patterns and temporal changes in Sentinel-5P air-pollution observations over a selected AOI.',styles['SmallNote'])]
+        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series,request.variable,cfg['unit']),Spacer(1,7),Paragraph('Reference-aligned method',styles['SectionTitle']),Paragraph(f'The workflow follows the supplied training material: Sentinel-5P collection, AOI and date filtering, pollutant band selection, temporal mean, unit conversion where specified, regional mean time series at 1113.2 m, and GeoTIFF raster export. For {request.variable}, the implemented unit is {cfg["unit"]}.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> Satellite atmospheric observations are not direct ground-station measurements and should not be interpreted as ISPU values. The unit conversion follows the supplied training reference.',styles['SmallNote'])]
         doc.build(story);buffer.seek(0);return StreamingResponse(buffer,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename={request.variable}_report_{request.start_date}_{request.end_date}.pdf'})
     except Exception as exc: error_response('PDF report generation failed',exc)
     finally:
@@ -149,7 +168,7 @@ def report_pdf(request:AnalysisRequest):
 
 @app.post('/api/upload/geotiff')
 def upload_geotiff(file:UploadFile=File(...)):
-    if not file.filename or not file.filename.lower().endswith(('.tif','.tiff')): raise HTTPException(400,'Please upload a GeoTIFF file (.tif or .tiff).')
+    if not file.filename or not file.filename.lower().endswith(('.tif','.tiff')): raise HTTPException(400,'Please upload a GeoTIFF file (.tif or .tiff)')
     data=file.file.read()
     if len(data)>100*1024*1024: raise HTTPException(400,'GeoTIFF is too large. Maximum size is 100 MB.')
     file_id=uuid.uuid4().hex;tif_path=UPLOAD_DIR/f'{file_id}.tif';tif_path.write_bytes(data)
