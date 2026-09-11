@@ -5,7 +5,7 @@
 <title>WebGIS Air Pollution Analysis — Hazidien Ramadhan Utomo</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=18">
+<link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body>
 <aside>
@@ -34,15 +34,15 @@
 <div class="guide-item"><b>CLEAR AOI</b><p>Menghapus AOI, raster hasil, result dan chart sehingga analisis berikutnya dimulai bersih.</p></div>
 <div class="guide-item"><b>HIDE AOI / SHOW AOI</b><p>Hanya menyembunyikan/menampilkan garis dan fill AOI. Raster analisis tidak ikut hilang.</p></div>
 <div class="guide-item"><b>HIDE ANALYSIS / SHOW ANALYSIS</b><p>Hanya menyembunyikan/menampilkan raster hasil Sentinel-5P. Hasil statistik tetap tersimpan.</p></div>
-<div class="guide-item"><b>OPEN TIME SERIES</b><p>Membuka panel chart. Setelah RUN berhasil, panel chart langsung dibuka dan loading dimulai sejak awal sehingga tidak menunggu aksi kedua.</p></div>
-<div class="guide-item"><b>DOWNLOAD GEOTIFF</b><p>Mengunduh raster hasil langsung melalui backend WebGIS sebagai GeoTIFF berdasarkan AOI, periode dan resolusi 1113.2 m.</p></div>
-<div class="guide-item"><b>DOWNLOAD PDF REPORT</b><p>Membuat laporan PDF berisi preview peta hasil, parameter, statistik, chart time series dan metode. Jika thumbnail GEE gagal sementara, PDF tetap dibuat dengan preview AOI sebagai fallback.</p></div>
+<div class="guide-item"><b>OPEN TIME SERIES</b><p>Membuka panel chart. Setelah RUN berhasil, panel chart langsung dibuka dan request chart dimulai bersamaan dengan analisis raster.</p></div>
+<div class="guide-item"><b>DOWNLOAD GEOTIFF</b><p>Mengunduh raster hasil melalui backend WebGIS sebagai GeoTIFF berdasarkan AOI, periode dan resolusi 1113.2 m.</p></div>
+<div class="guide-item"><b>DOWNLOAD PDF REPORT</b><p>Membuat PDF berisi preview peta berwarna, parameter, statistik, chart time series dan metode. Hasil analisis/chart yang sudah selesai dipakai ulang agar PDF tidak mengulang seluruh proses GEE.</p></div>
 <div class="guide-item"><b>Result</b><p>Menampilkan nilai statistik, unit, jumlah image, periode dan catatan interpretasi. Nilai adalah observasi atmosfer satelit, bukan pengukuran stasiun darat atau ISPU.</p></div>
-<div class="guide-item"><b>Map</b><p>Menampilkan basemap, AOI dan raster hasil. Gunakan tombol visibility untuk melihat raster dengan atau tanpa AOI.</p></div>
-<div class="guide-item"><b>Status</b><p>Menampilkan proses upload, analisis GEE, loading chart dan error download secara langsung.</p></div>
+<div class="guide-item"><b>Map &amp; color legend</b><p>Raster hasil memakai gradasi warna berbeda untuk setiap pollutant. Legend di kanan bawah menunjukkan rentang nilai dan unit pollutant aktif.</p></div>
+<div class="guide-item"><b>Status</b><p>Menampilkan proses upload, analisis GEE, loading chart dan status download/error secara langsung.</p></div>
 <div class="info-note"><b>Metode sesuai referensi:</b> Sentinel-5P ImageCollection → filter AOI/tanggal → pilih band → temporal mean → clip AOI → konversi satuan → agregasi AOI → time series pada 1113.2 m → GeoTIFF. SO₂/NO₂/CO mengikuti konversi mol/m² → µg/m³ pada referensi; CH₄ mengikuti ppb → ppm dengan membagi 1000.</div>
 </div></div>
 <div id="welcome-modal" class="modal-backdrop"><div class="welcome-card"><button id="welcome-close" class="modal-close" type="button">×</button><div class="welcome-kicker">WEBGIS AIR POLLUTION ANALYSIS</div><h2>Welcome to the Sentinel-5P WebGIS</h2><p class="welcome-name">Developed by <b>Hazidien Ramadhan Utomo</b></p><p>This WebGIS supports SO₂, NO₂, CO, and CH₄ spatial and temporal analysis.</p><div class="welcome-grid"><div><b>01</b><span>Select one pollutant &amp; dates</span></div><div><b>02</b><span>Draw or upload an AOI</span></div><div><b>03</b><span>Run one analysis</span></div><div><b>04</b><span>View chart &amp; exports</span></div></div><div class="info-note"><b>Important:</b> Satellite atmospheric observations are not direct ground measurements.</div><button id="start-app" class="primary-modal-button">START WEBGIS</button></div></div>
 <div id="chart-panel" class="chart-panel" hidden><div class="chart-header"><div><div class="chart-kicker">TIME SERIES</div><h2 id="chart-title">Air-pollution time series</h2><p id="chart-subtitle">Selected pollutant · selected AOI</p></div><button id="chart-close" class="chart-close" type="button">×</button></div><div class="chart-toolbar"><span id="chart-period">—</span><span id="chart-method">—</span></div><div class="chart-wrap"><canvas id="timeseries-chart"></canvas><div id="chart-loading" class="chart-loading" hidden>Loading time-series data…</div></div><div id="chart-empty" class="chart-empty" hidden>No time-series data available.</div></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script><script src="js/app.js?v=18"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script><script src="js/app.js?v=19"></script>
 </body></html>
