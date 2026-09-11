@@ -6,10 +6,10 @@ import ee
 from backend.config import initialize_gee
 
 POLLUTANTS = {
-    'SO2': {'name':'Sulfur Dioxide (SO2)','dataset':'COPERNICUS/S5P/NRTI/L3_SO2','band':'SO2_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':64.065,'mode':'mass','min':0,'max':100,'palette':['000000','0000ff','800080','00ffff','00a000','ffff00','ff0000']},
-    'NO2': {'name':'Nitrogen Dioxide (NO2)','dataset':'COPERNICUS/S5P/NRTI/L3_NO2','band':'tropospheric_NO2_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':46.0055,'mode':'mass','min':0,'max':100,'palette':['000000','0000ff','800080','00ffff','00a000','ffff00','ff0000']},
-    'CO': {'name':'Carbon Monoxide (CO)','dataset':'COPERNICUS/S5P/NRTI/L3_CO','band':'CO_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':28.01,'mode':'mass','min':30000,'max':40000,'palette':['000000','0000ff','800080','00ffff','00a000','ffff00','ff0000']},
-    'CH4': {'name':'Methane (CH4)','dataset':'COPERNICUS/S5P/OFFL/L3_CH4','band':'CH4_column_volume_mixing_ratio_dry_air','unit':'ppm','native_unit':'ppb','scale':1113.2,'molar_mass':None,'mode':'ppm','min':1.8,'max':1.9,'palette':['000000','0000ff','800080','00ffff','00a000','ffff00','ff0000']},
+    'SO2': {'name':'Sulfur Dioxide (SO2)','dataset':'COPERNICUS/S5P/NRTI/L3_SO2','band':'SO2_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':64.065,'mode':'mass','min':0,'max':100,'palette':['2C115F','4C2A85','2F6DB0','2BA8B8','65C9A4','C7E77B','FDE68A','F59E0B','DC2626']},
+    'NO2': {'name':'Nitrogen Dioxide (NO2)','dataset':'COPERNICUS/S5P/NRTI/L3_NO2','band':'tropospheric_NO2_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':46.0055,'mode':'mass','min':0,'max':100,'palette':['081D58','225EA8','1D91C0','41B6C4','7FCDBB','C7E9B4','EDF8B1','FEC44F','F03B20']},
+    'CO': {'name':'Carbon Monoxide (CO)','dataset':'COPERNICUS/S5P/NRTI/L3_CO','band':'CO_column_number_density','unit':'µg/m³','native_unit':'mol/m²','scale':1113.2,'molar_mass':28.01,'mode':'mass','min':0,'max':100,'palette':['2E1065','5B21B6','9333EA','DB2777','F43F5E','FB7185','FDBA74','FDE68A','FEF3C7']},
+    'CH4': {'name':'Methane (CH4)','dataset':'COPERNICUS/S5P/OFFL/L3_CH4','band':'CH4_column_volume_mixing_ratio_dry_air','unit':'ppm','native_unit':'ppb','scale':1113.2,'molar_mass':None,'mode':'ppm','min':1.8,'max':1.9,'palette':['064E3B','047857','059669','34D399','A7F3D0','FEF08A','FBBF24','F97316','B91C1C']},
 }
 
 def get_config(variable: str) -> dict:
@@ -32,10 +32,7 @@ def _reducer(name: str):
 
 def _convert(image, variable: str):
     cfg=get_config(variable)
-    if cfg['mode']=='mass':
-        # Training reference: mol/m² -> µg/m³ using molecular mass and a 10 km atmospheric column.
-        return image.multiply(cfg['molar_mass']*1e6/10000.0)
-    # Training reference: CH4 ppb -> ppm.
+    if cfg['mode']=='mass': return image.multiply(cfg['molar_mass']*1e6/10000.0)
     return image.divide(1000.0)
 
 def _period_bounds(start: date, inclusive_end: date, interval: str) -> Iterable[tuple[date,date]]:
@@ -66,12 +63,7 @@ def analyze_pollutant(request: dict):
     return {'success':True,'module':'air_pollution','variable':request['variable'],'name':cfg['name'],'dataset':cfg['dataset'],'band':cfg['band'],'unit':cfg['unit'],'native_unit':cfg['native_unit'],'scale':cfg['scale'],'aggregation':request.get('aggregation','mean'),'value':float(value),'image_count':int(count),'start_date':_format_date(request['start_date']),'end_date':_format_date(request['end_date']),'map':{'tile_url':map_id['tile_fetcher'].url_format,'vis':vis},'interpretation':{'label':'Relative','description':'Relative satellite-derived value within the selected AOI and period.'},'note':f'{cfg["name"]} is derived from Sentinel-5P atmospheric observations. The reported {cfg["unit"]} follows the conversion method in the supplied training reference and should not be treated as a ground-station measurement or ISPU value.'}
 
 def build_timeseries(request: dict):
-    """Build all time intervals server-side and make only one getInfo request.
-
-    This mirrors the reference's byMonth/byDay ImageCollection approach and avoids
-    one Python/GEE round-trip for every day or month, which was the main source of
-    the chart appearing late or intermittently.
-    """
+    """Build all time intervals server-side and make only one getInfo request."""
     cfg=get_config(request['variable']);initialize_gee();aoi=_aoi(request['aoi']);interval=request.get('interval','month');reducer=_reducer(request.get('aggregation','mean'))
     start=date.fromisoformat(request['start_date']) if isinstance(request['start_date'],str) else request['start_date'];end=date.fromisoformat(request['end_date']) if isinstance(request['end_date'],str) else request['end_date']
     unit='day' if interval=='day' else 'month';start_ee=ee.Date(start.isoformat());end_exclusive_ee=ee.Date((end+timedelta(days=1)).isoformat())
