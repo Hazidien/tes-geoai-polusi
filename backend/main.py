@@ -19,9 +19,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 
+from backend.aoi_upload import shapefile_zip_to_geojson
 from backend.modules.air_pollution.pollutants import get_config, analyze_pollutant, build_timeseries, download_image
 
-app=FastAPI(title='WebGIS Remote Sensing',version='0.5.0')
+app=FastAPI(title='WebGIS Remote Sensing',version='0.6.0')
 app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_headers=['*'])
 ROOT=Path(__file__).resolve().parent.parent
 FRONTEND_DIR=ROOT/'frontend'
@@ -42,8 +43,8 @@ class AnalysisRequest(BaseModel):
 def payload(request): return request.model_dump(mode='json')
 
 def validate_request(request):
-    if request.module!='air_pollution': raise HTTPException(400,'Unsupported module.')
-    if request.variable not in {'SO2','NO2','CO','CH4'}: raise HTTPException(400,'Unsupported air-pollution variable.')
+    if request.module!='air_pollution': raise HTTPException(400,'Unsupported module. This WebGIS currently provides Air Pollution only.')
+    if request.variable not in {'SO2','NO2','CO','CH4'}: raise HTTPException(400,'Unsupported air-pollution variable. Choose SO2, NO2, CO, or CH4.')
     if request.end_date<=request.start_date: raise HTTPException(400,'End date must be after start date.')
     if (request.end_date-request.start_date).days>366: raise HTTPException(400,'Maximum analysis period is 366 days.')
     if request.aoi.get('type') not in {'Polygon','MultiPolygon'}: raise HTTPException(400,'AOI must be a GeoJSON Polygon or MultiPolygon.')
@@ -55,10 +56,10 @@ def error_response(prefix, exc):
     raise HTTPException(500,f'{prefix}: {exc}') from exc
 
 @app.get('/')
-def frontend(): return FileResponse(FRONTEND_DIR/'index.html')
+def frontend(): return FileResponse(FRONTEND_DIR/'index.html',headers={'Cache-Control':'no-store'})
 
 @app.get('/api/health')
-def health(): return {'status':'ok'}
+def health(): return {'status':'ok','application':'WebGIS Air Pollution','version':'0.6.0','variables':['SO2','NO2','CO','CH4']}
 
 @app.post('/api/analyze')
 def analyze(request:AnalysisRequest):
@@ -80,6 +81,36 @@ def export_geotiff(request:AnalysisRequest):
         url=download_image(payload(request))
         return {'success':True,'download_url':url,'filename':f'{request.variable}_{request.start_date}_{request.end_date}.tif'}
     except Exception as exc: error_response('GeoTIFF export failed',exc)
+
+@app.post('/api/upload/aoi')
+def upload_aoi(file:UploadFile=File(...)):
+    if not file.filename or not file.filename.lower().endswith(('.zip','.shp','.geojson','.json')):
+        raise HTTPException(400,'Upload a Shapefile ZIP (.zip) or GeoJSON (.geojson/.json).')
+    try:
+        raw=file.file.read()
+        if file.filename.lower().endswith(('.geojson','.json')):
+            import json
+            data=json.loads(raw.decode('utf-8'))
+            if data.get('type')=='FeatureCollection':
+                features=data.get('features',[])
+                polygons=[f.get('geometry') for f in features if f.get('geometry',{}).get('type') in {'Polygon','MultiPolygon'}]
+                if not polygons: raise ValueError('GeoJSON contains no Polygon or MultiPolygon features.')
+                if len(polygons)==1: geometry=polygons[0]
+                else:
+                    coords=[]
+                    for geom in polygons:
+                        coords.extend(geom.get('coordinates',[]) if geom.get('type')=='MultiPolygon' else [geom.get('coordinates',[])])
+                    geometry={'type':'MultiPolygon','coordinates':coords}
+            elif data.get('type')=='Feature': geometry=data.get('geometry')
+            else: geometry=data
+            if geometry.get('type') not in {'Polygon','MultiPolygon'}: raise ValueError('AOI must be Polygon or MultiPolygon.')
+            return {'success':True,'filename':file.filename,'geometry':geometry,'feature_count':1,'source':'GeoJSON'}
+        if file.filename.lower().endswith('.shp'):
+            raise ValueError('Please ZIP the complete Shapefile set (.shp, .shx, .dbf and preferably .prj) before uploading.')
+        result=shapefile_zip_to_geojson(raw)
+        return {'success':True,'filename':file.filename,'geometry':result['geometry'],'feature_count':result['feature_count'],'source_epsg':result['source_epsg'],'source':'Shapefile'}
+    except HTTPException: raise
+    except Exception as exc: raise HTTPException(400,f'AOI upload failed: {exc}') from exc
 
 def pdf_chart(series, variable, unit):
     from reportlab.graphics.shapes import Drawing,String
