@@ -1,12 +1,19 @@
 from datetime import date
+from pathlib import Path
 from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from backend.modules.air_pollution.co import analyze_co
 
 app = FastAPI(title='WebGIS Remote Sensing', version='0.1.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
+app.mount('/css', StaticFiles(directory=FRONTEND_DIR / 'css'), name='css')
+app.mount('/js', StaticFiles(directory=FRONTEND_DIR / 'js'), name='js')
 
 class AnalysisRequest(BaseModel):
     module: Literal['air_pollution']
@@ -15,6 +22,10 @@ class AnalysisRequest(BaseModel):
     start_date: date
     end_date: date
     aggregation: Literal['mean', 'median', 'min', 'max'] = 'mean'
+
+@app.get('/')
+def frontend():
+    return FileResponse(FRONTEND_DIR / 'index.html')
 
 @app.get('/api/health')
 def health():
