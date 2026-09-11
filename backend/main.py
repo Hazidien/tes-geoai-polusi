@@ -19,9 +19,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 
-from backend.modules.air_pollution.co import analyze_co, build_co_image, build_co_timeseries
+from backend.modules.air_pollution.pollutants import get_config, analyze_pollutant, build_timeseries, download_image
 
-app=FastAPI(title='WebGIS Remote Sensing',version='0.4.1')
+app=FastAPI(title='WebGIS Remote Sensing',version='0.5.0')
 app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_headers=['*'])
 ROOT=Path(__file__).resolve().parent.parent
 FRONTEND_DIR=ROOT/'frontend'
@@ -42,12 +42,17 @@ class AnalysisRequest(BaseModel):
 def payload(request): return request.model_dump(mode='json')
 
 def validate_request(request):
-    if request.module!='air_pollution' or request.variable!='CO': raise HTTPException(400,'Only Air Pollution → CO is currently available.')
+    if request.module!='air_pollution': raise HTTPException(400,'Unsupported module.')
+    if request.variable not in {'SO2','NO2','CO','CH4'}: raise HTTPException(400,'Unsupported air-pollution variable.')
     if request.end_date<=request.start_date: raise HTTPException(400,'End date must be after start date.')
     if (request.end_date-request.start_date).days>366: raise HTTPException(400,'Maximum analysis period is 366 days.')
     if request.aoi.get('type') not in {'Polygon','MultiPolygon'}: raise HTTPException(400,'AOI must be a GeoJSON Polygon or MultiPolygon.')
     if request.aggregation not in {'mean','median','min','max'}: raise HTTPException(400,'Invalid spatial aggregation method.')
     if request.interval not in {'day','month'}: raise HTTPException(400,'Invalid time series interval.')
+
+def error_response(prefix, exc):
+    if isinstance(exc,(ValueError,RuntimeError)): raise HTTPException(400,str(exc)) from exc
+    raise HTTPException(500,f'{prefix}: {exc}') from exc
 
 @app.get('/')
 def frontend(): return FileResponse(FRONTEND_DIR/'index.html')
@@ -58,64 +63,56 @@ def health(): return {'status':'ok'}
 @app.post('/api/analyze')
 def analyze(request:AnalysisRequest):
     validate_request(request)
-    try: return analyze_co(payload(request))
-    except (ValueError,RuntimeError) as exc: raise HTTPException(400,str(exc)) from exc
-    except Exception as exc: raise HTTPException(500,f'GEE processing failed: {exc}') from exc
+    try: return analyze_pollutant(payload(request))
+    except Exception as exc: error_response('GEE processing failed',exc)
 
 @app.post('/api/chart')
 def chart(request:AnalysisRequest):
     validate_request(request)
-    try: return {'success':True,'variable':'CO','unit':'mol/m²','interval':request.interval,'aggregation':request.aggregation,'series':build_co_timeseries(payload(request))}
-    except (ValueError,RuntimeError) as exc: raise HTTPException(400,str(exc)) from exc
-    except Exception as exc: raise HTTPException(500,f'Time series processing failed: {exc}') from exc
+    try:
+        return {'success':True,'variable':request.variable,'unit':get_config(request.variable)['unit'],'interval':request.interval,'aggregation':request.aggregation,'series':build_timeseries(payload(request))}
+    except Exception as exc: error_response('Time series processing failed',exc)
 
 @app.post('/api/export/geotiff')
 def export_geotiff(request:AnalysisRequest):
     validate_request(request)
     try:
-        image,_=build_co_image(payload(request))
-        url=image.getDownloadURL({'region':request.aoi,'scale':1113.2,'crs':'EPSG:4326','format':'GEO_TIFF','maxPixels':1e8})
-        return {'success':True,'download_url':url,'filename':f'CO_{request.start_date}_{request.end_date}.tif'}
-    except Exception as exc: raise HTTPException(500,f'GeoTIFF export failed: {exc}') from exc
+        url=download_image(payload(request))
+        return {'success':True,'download_url':url,'filename':f'{request.variable}_{request.start_date}_{request.end_date}.tif'}
+    except Exception as exc: error_response('GeoTIFF export failed',exc)
 
-def pdf_chart(series):
+def pdf_chart(series, variable, unit):
     from reportlab.graphics.shapes import Drawing,String
     from reportlab.graphics.charts.lineplots import LinePlot
     from reportlab.graphics.charts.axes import XValueAxis,YValueAxis
-    width,height=175*mm,55*mm
-    d=Drawing(width,height)
+    width,height=175*mm,55*mm; d=Drawing(width,height)
     if not series:
-        d.add(String(45,height/2,'No time-series data available.',fontSize=9))
-        return d
+        d.add(String(45,height/2,'No time-series data available.',fontSize=9)); return d
     p=LinePlot();p.x=35;p.y=18;p.width=width-48;p.height=height-34
     p.data=[[(i,float(x['value'])) for i,x in enumerate(series)]]
     p.lines[0].strokeColor=colors.HexColor('#2d7ef7');p.lines[0].strokeWidth=1.8
-    p.xValueAxis=XValueAxis();p.yValueAxis=YValueAxis()
-    p.xValueAxis.valueMin=0;p.xValueAxis.valueMax=max(1,len(series)-1)
+    p.xValueAxis=XValueAxis();p.yValueAxis=YValueAxis();p.xValueAxis.valueMin=0;p.xValueAxis.valueMax=max(1,len(series)-1)
     vals=[float(x['value']) for x in series];lo,hi=min(vals),max(vals);pad=(hi-lo)*.08 or max(abs(lo)*.05,1e-8)
-    p.yValueAxis.valueMin=lo-pad;p.yValueAxis.valueMax=hi+pad
-    p.xValueAxis.labels.fontSize=7;p.yValueAxis.labels.fontSize=7
-    d.add(p);d.add(String(35,height-9,'CO time series (mol/m²)',fontSize=8,fillColor=colors.HexColor('#334155')))
-    return d
+    p.yValueAxis.valueMin=lo-pad;p.yValueAxis.valueMax=hi+pad;p.xValueAxis.labels.fontSize=7;p.yValueAxis.labels.fontSize=7
+    d.add(p);d.add(String(35,height-9,f'{variable} time series ({unit})',fontSize=8,fillColor=colors.HexColor('#334155')));return d
 
 @app.post('/api/report/pdf')
 def report_pdf(request:AnalysisRequest):
-    validate_request(request)
-    map_path=None
+    validate_request(request); map_path=None
     try:
-        data=payload(request);result=analyze_co(data);series=build_co_timeseries(data);image,_=build_co_image(data)
-        thumb=image.getThumbURL({'region':request.aoi,'dimensions':900,'format':'png','min':0,'max':0.05,'palette':['001219','005f73','0a9396','94d2bd','e9d8a6','ee9b00','ca6702','bb3e03','ae2012']})
-        map_bytes=urllib.request.urlopen(thumb,timeout=30).read()
-        map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
+        data=payload(request);result=analyze_pollutant(data);series=build_timeseries(data);cfg=get_config(request.variable)
+        from backend.modules.air_pollution.pollutants import build_image
+        image,_=build_image(data)
+        thumb=image.getThumbURL({'region':request.aoi,'dimensions':900,'format':'png','min':cfg['min'],'max':cfg['max'],'palette':cfg['palette']})
+        map_bytes=urllib.request.urlopen(thumb,timeout=30).read();map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
         buffer=io.BytesIO();doc=SimpleDocTemplate(buffer,pagesize=A4,rightMargin=15*mm,leftMargin=15*mm,topMargin=14*mm,bottomMargin=14*mm)
         styles=getSampleStyleSheet();styles.add(ParagraphStyle(name='SmallNote',parent=styles['BodyText'],fontSize=8.5,leading=12,textColor=colors.HexColor('#475569')));styles.add(ParagraphStyle(name='SectionTitle',parent=styles['Heading2'],fontSize=13,leading=16,textColor=colors.HexColor('#0f2742'),spaceBefore=8,spaceAfter=6))
-        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph('Carbon Monoxide (CO) — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of Carbon Monoxide (CO) based on Sentinel-5P data over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8),RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Analysis map for the selected AOI. Colors represent relative CO values from Sentinel-5P imagery.',styles['SmallNote']),Spacer(1,7),Paragraph('Analysis Parameters',styles['SectionTitle'])]
-        rows=[['Module',result['module']],['Variable','Carbon Monoxide (CO)'],['Dataset',result['dataset']],['Band',result['band']],['Period',f"{result['start_date']} → {result['end_date']}"],['Spatial aggregation',result['aggregation'].title()],['Time-series interval',request.interval.title()],['Images',str(result['image_count'])],['Statistic',f"{result['value']:.6e} {result['unit']}"]]
+        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph(cfg['name']+' — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of the selected Sentinel-5P pollutant over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8),RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Analysis map for the selected AOI.',styles['SmallNote']),Spacer(1,7),Paragraph('Analysis Parameters',styles['SectionTitle'])]
+        rows=[['Module','Air Pollution'],['Variable',cfg['name']],['Dataset',cfg['dataset']],['Band',cfg['band']],['Period',f"{result['start_date']} → {result['end_date']}"],['Spatial aggregation',result['aggregation'].title()],['Time-series interval',request.interval.title()],['Images',str(result['image_count'])],['Statistic',f"{result['value']:.6e} {result['unit']}"]]
         table=Table(rows,colWidths=[48*mm,125*mm]);table.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.4,colors.HexColor('#cbd5e1')),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),('VALIGN',(0,0),(-1,-1),'TOP'),('PADDING',(0,0),(-1,-1),6),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold')]))
-        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series),Spacer(1,7),Paragraph('Explanation',styles['SectionTitle']),Paragraph('The analysis uses the Sentinel-5P Carbon Monoxide collection with the <b>CO_column_number_density</b> band. Values are expressed as <b>column number density (mol/m²)</b>. The reference material describes the use of Sentinel-5P for CO analysis and the creation of a time-series chart based on the spatial mean over the study area.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> These results represent satellite atmospheric column measurements, not direct ground-level air concentrations and not ISPU values.',styles['SmallNote']),Spacer(1,5),Paragraph('WebGIS purpose: to provide an interactive geospatial environment for exploring spatial patterns and temporal changes in CO over a selected AOI, while also supporting GeoTIFF export and PDF reporting.',styles['SmallNote'])]
-        doc.build(story);buffer.seek(0)
-        return StreamingResponse(buffer,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename=CO_report_{request.start_date}_{request.end_date}.pdf'})
-    except Exception as exc: raise HTTPException(500,f'PDF report generation failed: {exc}') from exc
+        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series,request.variable,cfg['unit']),Spacer(1,7),Paragraph('Explanation',styles['SectionTitle']),Paragraph(f'The analysis follows the supplied training reference for Sentinel-5P {request.variable} processing: spatial/date filtering, temporal mean, regional aggregation, time-series charting, and raster export. The reported unit is {cfg["unit"]}.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> Satellite atmospheric observations are not direct ground-station measurements. Unit conversion follows the method described in the reference material where applicable.',styles['SmallNote']),Spacer(1,5),Paragraph('WebGIS purpose: to provide an interactive geospatial environment for exploring spatial patterns and temporal changes in Sentinel-5P air-pollution observations over a selected AOI.',styles['SmallNote'])]
+        doc.build(story);buffer.seek(0);return StreamingResponse(buffer,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename={request.variable}_report_{request.start_date}_{request.end_date}.pdf'})
+    except Exception as exc: error_response('PDF report generation failed',exc)
     finally:
         if map_path: map_path.unlink(missing_ok=True)
 
