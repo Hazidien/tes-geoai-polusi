@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 import io
 import tempfile
@@ -22,7 +22,7 @@ from reportlab.lib.units import mm
 from backend.aoi_upload import shapefile_zip_to_geojson
 from backend.modules.air_pollution.pollutants import get_config, analyze_pollutant, build_timeseries, download_image
 
-app=FastAPI(title='WebGIS Remote Sensing',version='0.7.0')
+app=FastAPI(title='WebGIS Remote Sensing',version='0.7.1')
 app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_headers=['*'])
 ROOT=Path(__file__).resolve().parent.parent
 FRONTEND_DIR=ROOT/'frontend'
@@ -59,7 +59,16 @@ def error_response(prefix, exc):
 def frontend(): return FileResponse(FRONTEND_DIR/'index.html',headers={'Cache-Control':'no-store'})
 
 @app.get('/api/health')
-def health(): return {'status':'ok','application':'WebGIS Air Pollution','version':'0.7.0','variables':['SO2','NO2','CO','CH4']}
+def health(): return {'status':'ok','application':'WebGIS Air Pollution','version':'0.7.1','variables':['SO2','NO2','CO','CH4']}
+
+@app.get('/api/gee-status')
+def gee_status():
+    try:
+        from backend.config import initialize_gee
+        initialize_gee()
+        return {'ok':True,'message':'Google Earth Engine is ready.'}
+    except Exception as exc:
+        return {'ok':False,'message':str(exc)}
 
 @app.post('/api/analyze')
 def analyze(request:AnalysisRequest):
@@ -79,17 +88,10 @@ def export_geotiff(request:AnalysisRequest):
     validate_request(request)
     try:
         url=download_image(payload(request))
-        return {'success':True,'download_url':url,'filename':f'{request.variable}_{request.start_date}_{request.end_date}.tif'}
-    except Exception as exc: error_response('GeoTIFF export failed',exc)
-
-@app.post('/api/export/geotiff/download')
-def export_geotiff_download(request:AnalysisRequest):
-    validate_request(request)
-    try:
-        url=download_image(payload(request))
-        with urllib.request.urlopen(url,timeout=120) as response:
+        with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'WebGIS-Air-Pollution/0.7.1'}),timeout=120) as response:
             data=response.read()
-        return StreamingResponse(io.BytesIO(data),media_type='image/tiff',headers={'Content-Disposition':f'attachment; filename={request.variable}_{request.start_date}_{request.end_date}.tif','Content-Length':str(len(data))})
+        filename=f'{request.variable}_{request.start_date}_{request.end_date}.tif'
+        return StreamingResponse(io.BytesIO(data),media_type='image/tiff',headers={'Content-Disposition':f'attachment; filename="{filename}"','Content-Length':str(len(data))})
     except Exception as exc: error_response('GeoTIFF download failed',exc)
 
 @app.post('/api/upload/aoi')
@@ -108,15 +110,13 @@ def upload_aoi(file:UploadFile=File(...)):
                 if len(polygons)==1: geometry=polygons[0]
                 else:
                     coords=[]
-                    for geom in polygons:
-                        coords.extend(geom.get('coordinates',[]) if geom.get('type')=='MultiPolygon' else [geom.get('coordinates',[])])
+                    for geom in polygons: coords.extend(geom.get('coordinates',[]) if geom.get('type')=='MultiPolygon' else [geom.get('coordinates',[])])
                     geometry={'type':'MultiPolygon','coordinates':coords}
             elif data.get('type')=='Feature': geometry=data.get('geometry')
             else: geometry=data
             if geometry.get('type') not in {'Polygon','MultiPolygon'}: raise ValueError('AOI must be Polygon or MultiPolygon.')
             return {'success':True,'filename':file.filename,'geometry':geometry,'feature_count':1,'source':'GeoJSON'}
-        if file.filename.lower().endswith('.shp'):
-            raise ValueError('Please ZIP the complete Shapefile set (.shp, .shx, .dbf and preferably .prj) before uploading.')
+        if file.filename.lower().endswith('.shp'): raise ValueError('Please ZIP the complete Shapefile set (.shp, .shx, .dbf and preferably .prj) before uploading.')
         result=shapefile_zip_to_geojson(raw)
         return {'success':True,'filename':file.filename,'geometry':result['geometry'],'feature_count':result['feature_count'],'source_epsg':result['source_epsg'],'source':'Shapefile'}
     except HTTPException: raise
@@ -127,44 +127,44 @@ def pdf_chart(series, variable, unit):
     from reportlab.graphics.charts.lineplots import LinePlot
     from reportlab.graphics.charts.axes import XValueAxis,YValueAxis
     width,height=175*mm,55*mm; d=Drawing(width,height)
-    if not series:
-        d.add(String(45,height/2,'No time-series data available.',fontSize=9)); return d
-    p=LinePlot();p.x=35;p.y=18;p.width=width-48;p.height=height-34
-    p.data=[[(i,float(x['value'])) for i,x in enumerate(series)]]
-    p.lines[0].strokeColor=colors.HexColor('#2d7ef7');p.lines[0].strokeWidth=1.8
-    p.xValueAxis=XValueAxis();p.yValueAxis=YValueAxis();p.xValueAxis.valueMin=0;p.xValueAxis.valueMax=max(1,len(series)-1)
-    vals=[float(x['value']) for x in series];lo,hi=min(vals),max(vals);pad=(hi-lo)*.08 or max(abs(lo)*.05,1e-8)
-    p.yValueAxis.valueMin=lo-pad;p.yValueAxis.valueMax=hi+pad;p.xValueAxis.labels.fontSize=7;p.yValueAxis.labels.fontSize=7
+    if not series: d.add(String(45,height/2,'No time-series data available.',fontSize=9)); return d
+    p=LinePlot();p.x=35;p.y=18;p.width=width-48;p.height=height-34;p.data=[[(i,float(x['value'])) for i,x in enumerate(series)]]
+    p.lines[0].strokeColor=colors.HexColor('#2d7ef7');p.lines[0].strokeWidth=1.8;p.xValueAxis=XValueAxis();p.yValueAxis=YValueAxis();p.xValueAxis.valueMin=0;p.xValueAxis.valueMax=max(1,len(series)-1)
+    vals=[float(x['value']) for x in series];lo,hi=min(vals),max(vals);pad=(hi-lo)*.08 or max(abs(lo)*.05,1e-8);p.yValueAxis.valueMin=lo-pad;p.yValueAxis.valueMax=hi+pad;p.xValueAxis.labels.fontSize=7;p.yValueAxis.labels.fontSize=7
     d.add(p);d.add(String(35,height-9,f'{variable} time series ({unit})',fontSize=8,fillColor=colors.HexColor('#334155')));return d
+
+def fallback_preview(request, result, cfg):
+    from PIL import ImageDraw
+    path=UPLOAD_DIR/f'{uuid.uuid4().hex}_fallback.png';img=Image.new('RGB',(1200,700),'white');draw=ImageDraw.Draw(img);draw.rectangle((40,40,1160,660),outline='#334155',width=3)
+    coords=request['aoi'].get('coordinates',[]);rings=[poly[0] for poly in coords if poly] if request['aoi']['type']=='MultiPolygon' else ([coords[0]] if coords else []);pts=[(x,y) for ring in rings for x,y in ring]
+    if pts:
+        xs=[p[0] for p in pts];ys=[p[1] for p in pts];xmin,xmax=min(xs),max(xs);ymin,ymax=min(ys),max(ys);dx=xmax-xmin or 1;dy=ymax-ymin or 1;mapped=[(100+(x-xmin)/dx*1000,600-(y-ymin)/dy*500) for x,y in pts];draw.polygon(mapped,outline='#1687ff',width=5)
+    draw.text((65,65),f'{cfg["name"]} — Sentinel-5P',fill='#0f2742');draw.text((65,95),f'Result: {result["value"]:.6e} {cfg["unit"]}',fill='#334155');draw.text((65,125),'AOI preview (Earth Engine thumbnail unavailable)',fill='#64748b');img.save(path,'PNG');return path
 
 @app.post('/api/report/pdf')
 def report_pdf(request:AnalysisRequest):
-    validate_request(request); map_path=None
+    validate_request(request);map_path=None
     try:
         data=payload(request);result=analyze_pollutant(data);series=build_timeseries(data);cfg=get_config(request.variable)
         from backend.modules.air_pollution.pollutants import build_image
-        image,_=build_image(data)
-        map_bytes=None
+        image,_=build_image(data);map_bytes=None
         try:
-            thumb=image.getThumbURL({'region':request.aoi,'dimensions':900,'format':'png','min':cfg['min'],'max':cfg['max'],'palette':cfg['palette']})
-            with urllib.request.urlopen(thumb,timeout=60) as response: map_bytes=response.read()
-        except Exception:
-            map_bytes=None
-        if map_bytes:
-            map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
+            thumb=image.getThumbURL({'region':request.aoi,'dimensions':1000,'format':'png','min':cfg['min'],'max':cfg['max'],'palette':cfg['palette']})
+            with urllib.request.urlopen(urllib.request.Request(thumb,headers={'User-Agent':'WebGIS-Air-Pollution/0.7.1'}),timeout=60) as response: map_bytes=response.read()
+            if not map_bytes.startswith(b'\x89PNG'): map_bytes=None
+        except Exception: map_bytes=None
+        if map_bytes: map_path=UPLOAD_DIR/f'{uuid.uuid4().hex}_map.png';map_path.write_bytes(map_bytes)
+        else: map_path=fallback_preview(request,result,cfg)
         buffer=io.BytesIO();doc=SimpleDocTemplate(buffer,pagesize=A4,rightMargin=15*mm,leftMargin=15*mm,topMargin=14*mm,bottomMargin=14*mm)
         styles=getSampleStyleSheet();styles.add(ParagraphStyle(name='SmallNote',parent=styles['BodyText'],fontSize=8.5,leading=12,textColor=colors.HexColor('#475569')));styles.add(ParagraphStyle(name='SectionTitle',parent=styles['Heading2'],fontSize=13,leading=16,textColor=colors.HexColor('#0f2742'),spaceBefore=8,spaceAfter=6))
-        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph(cfg['name']+' — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of the selected Sentinel-5P pollutant over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8)]
-        if map_path: story += [RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Sentinel-5P analysis map for the selected AOI.',styles['SmallNote']),Spacer(1,7)]
-        else: story += [Paragraph('Map preview could not be embedded, but the analysis result and parameters are included below.',styles['SmallNote']),Spacer(1,7)]
-        story += [Paragraph('Analysis Parameters',styles['SectionTitle'])]
+        story=[Paragraph('WebGIS Air Pollution Analysis',styles['Title']),Paragraph(cfg['name']+' — Sentinel-5P',styles['Heading2']),Paragraph('Developed by <b>Hazidien Ramadhan Utomo</b>',styles['SmallNote']),Spacer(1,7),Paragraph('This report presents the spatial and temporal analysis of the selected Sentinel-5P pollutant over the user-selected Area of Interest (AOI).',styles['BodyText']),Spacer(1,8),RLImage(str(map_path),width=175*mm,height=112*mm),Paragraph('Analysis map / AOI preview.',styles['SmallNote']),Spacer(1,7),Paragraph('Analysis Parameters',styles['SectionTitle'])]
         rows=[['Module','Air Pollution'],['Variable',cfg['name']],['Dataset',cfg['dataset']],['Band',cfg['band']],['Period',f"{result['start_date']} → {result['end_date']}"],['Spatial aggregation',result['aggregation'].title()],['Time-series interval',request.interval.title()],['Images',str(result['image_count'])],['Statistic',f"{result['value']:.6e} {result['unit']}"]]
         table=Table(rows,colWidths=[48*mm,125*mm]);table.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.4,colors.HexColor('#cbd5e1')),('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),('VALIGN',(0,0),(-1,-1),'TOP'),('PADDING',(0,0),(-1,-1),6),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold')]))
-        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series,request.variable,cfg['unit']),Spacer(1,7),Paragraph('Reference-aligned method',styles['SectionTitle']),Paragraph(f'The workflow follows the supplied training material: Sentinel-5P collection, AOI and date filtering, pollutant band selection, temporal mean, unit conversion where specified, regional mean time series at 1113.2 m, and GeoTIFF raster export. For {request.variable}, the implemented unit is {cfg["unit"]}.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> Satellite atmospheric observations are not direct ground-station measurements and should not be interpreted as ISPU values. The unit conversion follows the supplied training reference.',styles['SmallNote'])]
-        doc.build(story);buffer.seek(0);return StreamingResponse(buffer,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename={request.variable}_report_{request.start_date}_{request.end_date}.pdf'})
+        story += [table,Spacer(1,9),Paragraph('Time Series',styles['SectionTitle']),pdf_chart(series,request.variable,cfg['unit']),Spacer(1,7),Paragraph('Reference-aligned method',styles['SectionTitle']),Paragraph(f'The workflow follows the supplied training material: filter the Sentinel-5P ImageCollection by AOI and date, select the pollutant band, calculate temporal mean, clip to the AOI, apply the reference unit conversion where specified, aggregate the AOI at 1113.2 m, and generate the selected time-series interval.',styles['SmallNote']),Spacer(1,5),Paragraph('<b>Important:</b> Satellite atmospheric observations are not direct ground-station measurements and should not be interpreted as ISPU values.',styles['SmallNote'])]
+        doc.build(story);buffer.seek(0);filename=f'{request.variable}_report_{request.start_date}_{request.end_date}.pdf';return StreamingResponse(buffer,media_type='application/pdf',headers={'Content-Disposition':f'attachment; filename="{filename}"'})
     except Exception as exc: error_response('PDF report generation failed',exc)
     finally:
-        if map_path: map_path.unlink(missing_ok=True)
+        if map_path: Path(map_path).unlink(missing_ok=True)
 
 @app.post('/api/upload/geotiff')
 def upload_geotiff(file:UploadFile=File(...)):
@@ -182,8 +182,7 @@ def upload_geotiff(file:UploadFile=File(...)):
         else:
             if arr.shape[2]==2: arr=arr[:,:,0];img=Image.fromarray(arr,'L')
             else: img=Image.fromarray(arr[:,:,:3])
-        preview_path=UPLOAD_DIR/f'{file_id}.png';img.save(preview_path,'PNG')
-        return {'success':True,'id':file_id,'filename':file.filename,'crs':crs,'bounds':bounds,'width':width,'height':height,'bands':count,'dtype':dtype,'nodata':nodata,'preview_url':f'/api/upload/geotiff/{file_id}/preview'}
+        preview_path=UPLOAD_DIR/f'{file_id}.png';img.save(preview_path,'PNG');return {'success':True,'id':file_id,'filename':file.filename,'crs':crs,'bounds':bounds,'width':width,'height':height,'bands':count,'dtype':dtype,'nodata':nodata,'preview_url':f'/api/upload/geotiff/{file_id}/preview'}
     except HTTPException: tif_path.unlink(missing_ok=True);raise
     except Exception as exc: tif_path.unlink(missing_ok=True);raise HTTPException(400,f'Could not read GeoTIFF: {exc}') from exc
 
