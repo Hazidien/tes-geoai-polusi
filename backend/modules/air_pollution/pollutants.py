@@ -1,11 +1,13 @@
-from datetime import date
-from typing import Dict, Iterable
+from datetime import date, timedelta
+from typing import Iterable
 
 import ee
 
 from backend.config import initialize_gee
 
 
+# The four pollutants and processing parameters below follow the supplied
+# Geoaccess training reference, Air Pollution chapter (Sentinel-5P).
 POLLUTANTS = {
     'SO2': {
         'name': 'Sulfur Dioxide (SO2)',
@@ -42,8 +44,8 @@ POLLUTANTS = {
         'scale': 1113.2,
         'molar_mass': 28.01,
         'mode': 'mass',
-        'min': 30000,
-        'max': 40000,
+        'min': 0,
+        'max': 100,
         'palette': ['000000', '0000ff', '800080', '00ffff', '00a000', 'ffff00', 'ff0000'],
     },
     'CH4': {
@@ -73,13 +75,19 @@ def _aoi(aoi: dict):
     return ee.Geometry(aoi)
 
 
+def _exclusive_end(end_date: str) -> str:
+    # The UI uses an inclusive end date. Earth Engine filterDate uses an
+    # exclusive end, so add one day to include the complete selected end day.
+    return (date.fromisoformat(end_date) + timedelta(days=1)).isoformat()
+
+
 def _collection(request: dict):
     initialize_gee()
     cfg = get_config(request['variable'])
     return (
         ee.ImageCollection(cfg['dataset'])
         .filterBounds(_aoi(request['aoi']))
-        .filterDate(request['start_date'], request['end_date'])
+        .filterDate(request['start_date'], _exclusive_end(request['end_date']))
         .select(cfg['band'])
     )
 
@@ -100,29 +108,32 @@ def _reducer(name: str):
 def _convert(image, variable: str):
     cfg = get_config(variable)
     if cfg['mode'] == 'mass':
-        # Reference training formula: mol/m² -> µg/m³ using a 10 km atmospheric column.
+        # Supplied reference: concentration (µg/m³) = mol/m² × molecular mass
+        # (g/mol) × 1,000,000 / 10,000 m, using a 10 km atmospheric column.
         factor = cfg['molar_mass'] * 1e6 / 10000.0
         return image.multiply(factor)
+    # Supplied CH4 reference: ppb to ppm.
     return image.divide(1000.0)
 
 
-def _period_bounds(start: date, end: date, interval: str) -> Iterable[tuple[date, date]]:
+def _period_bounds(start: date, inclusive_end: date, interval: str) -> Iterable[tuple[date, date]]:
+    exclusive_end = inclusive_end + timedelta(days=1)
     if interval == 'day':
         cursor = start
-        while cursor < end:
-            nxt = date.fromordinal(cursor.toordinal() + 1)
-            yield cursor, min(nxt, end)
+        while cursor < exclusive_end:
+            nxt = cursor + timedelta(days=1)
+            yield cursor, nxt
             cursor = nxt
         return
     if interval != 'month':
         raise ValueError('Interval must be day or month.')
     cursor = start
-    while cursor < end:
+    while cursor < exclusive_end:
         if cursor.month == 12:
             nxt = date(cursor.year + 1, 1, 1)
         else:
             nxt = date(cursor.year, cursor.month + 1, 1)
-        yield cursor, min(nxt, end)
+        yield cursor, min(nxt, exclusive_end)
         cursor = nxt
 
 
@@ -136,6 +147,7 @@ def build_image(request: dict):
     count = collection.size().getInfo()
     if not count:
         raise ValueError(f'No {cfg["name"]} imagery is available for the selected AOI and date range.')
+    # Reference workflow: ImageCollection.mean() followed by clip(AOI).
     return _convert(collection.mean().clip(_aoi(request['aoi'])), request['variable']), count
 
 
@@ -170,7 +182,7 @@ def analyze_pollutant(request: dict):
         'end_date': _format_date(request['end_date']),
         'map': {'tile_url': map_id['tile_fetcher'].url_format, 'vis': vis},
         'interpretation': {'label': 'Relative', 'description': 'Relative satellite-derived value within the selected AOI and period.'},
-        'note': f'{cfg["name"]} is derived from Sentinel-5P atmospheric observations. The reported {cfg["unit"]} value follows the reference conversion method and should not be treated as a ground-station measurement or ISPU value.',
+        'note': f'{cfg["name"]} is derived from Sentinel-5P atmospheric observations. The reported {cfg["unit"]} follows the conversion method in the supplied training reference and should not be treated as a ground-station measurement or ISPU value.',
     }
 
 
@@ -183,16 +195,18 @@ def build_timeseries(request: dict):
     interval = request.get('interval', 'month')
     reducer = _reducer(request.get('aggregation', 'mean'))
     output = []
-    for period_start, period_end in _period_bounds(start, end, interval):
+    for period_start, period_end_exclusive in _period_bounds(start, end, interval):
         coll = (
             ee.ImageCollection(cfg['dataset'])
             .filterBounds(aoi)
-            .filterDate(_format_date(period_start), _format_date(period_end))
+            .filterDate(_format_date(period_start), _format_date(period_end_exclusive))
             .select(cfg['band'])
         )
         count = coll.size().getInfo()
         if not count:
             continue
+        # Reference chart workflow: temporal mean for each interval, then
+        # regional ee.Reducer.mean() at Sentinel-5P scale 1113.2 m.
         image = _convert(coll.mean(), request['variable'])
         stats = image.reduceRegion(reducer=reducer, geometry=aoi, scale=cfg['scale'], maxPixels=1e8).getInfo()
         value = stats.get(cfg['band'])
@@ -204,6 +218,8 @@ def build_timeseries(request: dict):
 def download_image(request: dict):
     cfg = get_config(request['variable'])
     image, _ = build_image(request)
+    # Reference export: raster result, 1113.2 m Sentinel-5P scale, GeoTIFF,
+    # clipped to the selected geometry.
     return image.getDownloadURL({
         'region': request['aoi'],
         'scale': cfg['scale'],
