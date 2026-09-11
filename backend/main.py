@@ -19,7 +19,7 @@ from reportlab.lib import colors
 
 from backend.modules.air_pollution.co import analyze_co, build_co_image
 
-app = FastAPI(title='WebGIS Remote Sensing', version='0.3.1')
+app = FastAPI(title='WebGIS Remote Sensing', version='0.3.2')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,6 +37,11 @@ class AnalysisRequest(BaseModel):
     start_date: date
     end_date: date
     aggregation: str = Field('mean')
+
+
+def gee_payload(request: AnalysisRequest) -> dict:
+    """Return JSON-compatible values for the Earth Engine Python API."""
+    return request.model_dump(mode='json')
 
 
 @app.get('/')
@@ -60,7 +65,7 @@ def analyze(request: AnalysisRequest):
     if request.aggregation not in {'mean', 'median', 'min', 'max'}:
         raise HTTPException(status_code=400, detail='Invalid spatial aggregation method.')
     try:
-        return analyze_co(request.model_dump())
+        return analyze_co(gee_payload(request))
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -70,7 +75,7 @@ def analyze(request: AnalysisRequest):
 @app.post('/api/export/geotiff')
 def export_geotiff(request: AnalysisRequest):
     try:
-        image, _ = build_co_image(request.model_dump())
+        image, _ = build_co_image(gee_payload(request))
         url = image.getDownloadURL({
             'region': request.aoi,
             'scale': 1113.2,
@@ -86,7 +91,7 @@ def export_geotiff(request: AnalysisRequest):
 @app.post('/api/report/pdf')
 def report_pdf(request: AnalysisRequest):
     try:
-        result = analyze_co(request.model_dump())
+        result = analyze_co(gee_payload(request))
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=42, leftMargin=42, topMargin=42, bottomMargin=42)
         styles = getSampleStyleSheet()
