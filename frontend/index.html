@@ -1,50 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WebGIS Air Pollution</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.css">
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
-<aside>
-  <div class="sidebar-header">
-    <div><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div>
-  </div>
-  <label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
-  <label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
-  <div class="dates">
-    <label>Start<input id="start" type="date" value="2026-01-01"></label>
-    <label>End<input id="end" type="date" value="2026-03-31"></label>
-  </div>
-  <label>Spatial aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
-  <section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw a polygon or rectangle on the map to define the analysis area.</p></section>
-  <button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
-  <p id="status" class="status">Draw a polygon or rectangle on the map.</p>
-  <section id="results" hidden><h2>Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p></section>
-</aside>
+<aside><div class="sidebar-header"><h1>WebGIS Analysis</h1><div class="subtitle">Air Pollution · Sentinel-5P</div></div>
+<label>Module<select id="module"><option value="air_pollution">Air Pollution</option></select></label>
+<label>Variable<select id="variable"><option value="CO">Carbon Monoxide (CO)</option></select></label>
+<div class="dates"><label>Start<input id="start" type="date" value="2026-01-01"></label><label>End<input id="end" type="date" value="2026-03-31"></label></div>
+<label>Spatial aggregation<select id="aggregation"><option value="mean">Mean</option><option value="median">Median</option><option value="min">Minimum</option><option value="max">Maximum</option></select></label>
+<section class="aoi-section"><h2>AOI</h2><p class="help-text">Draw one polygon or rectangle on the map. A new drawing replaces the previous AOI.</p></section>
+<button id="run">RUN ANALYSIS</button><button id="clear">CLEAR AOI</button>
+<section class="file-section"><h2>GeoTIFF</h2><input id="geotiff" type="file" accept=".tif,.tiff,image/tiff"><button id="upload">UPLOAD GEOTIFF</button><p id="upload-status" class="status">Upload raster GeoTIFF untuk melihat metadata dan preview.</p></section>
+<p id="status" class="status">Draw an AOI on the map.</p>
+<section id="results" hidden><h2>Analysis Result</h2><strong id="value">—</strong><span id="unit">mol/m²</span><p>Images: <b id="images">—</b></p><p id="dates"></p><p id="note"></p><div class="result-actions"><button id="download-tif">DOWNLOAD GEOTIFF</button><button id="download-pdf">DOWNLOAD PDF REPORT</button></div></section></aside>
 <main id="map"></main>
-
-<button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="WebGIS Information">i</button>
-<section id="info-panel" class="info-panel" hidden aria-label="WebGIS tutorial">
-  <div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>WebGIS Air Pollution</h2><p>Information &amp; tutorial penggunaan</p></div><button id="info-close" class="info-close" type="button" aria-label="Close information">×</button></div>
-  <div class="info-content">
-    <p class="intro">WebGIS ini digunakan untuk mengeksplorasi <b>Carbon Monoxide (CO)</b> berbasis citra satelit <b>Sentinel-5P</b> melalui Google Earth Engine.</p>
-    <h3>Cara menggunakan</h3>
-    <ol><li>Pilih <b>Module</b> dan <b>Variable</b> yang tersedia.</li><li>Tentukan <b>Start</b> dan <b>End</b> date untuk periode analisis.</li><li>Pilih metode <b>Spatial aggregation</b> (Mean, Median, Minimum, atau Maximum).</li><li>Gunakan toolbar gambar pada peta untuk membuat <b>AOI</b> berbentuk polygon atau rectangle.</li><li>Klik <b>RUN ANALYSIS</b> untuk menjalankan analisis.</li><li>Hasil statistik dan raster CO akan ditampilkan pada peta dan panel <b>Result</b>.</li><li>Klik <b>CLEAR AOI</b> untuk menghapus area dan membuat analisis baru.</li></ol>
-    <div class="info-note"><b>Catatan interpretasi:</b> nilai CO yang ditampilkan adalah <i>satellite column number density</i> dalam mol/m², bukan konsentrasi CO langsung di permukaan tanah atau indeks ISPU.</div>
-  </div>
-</section>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script>
-<script src="js/app.js?v=2"></script>
-<script>
-const infoToggle=document.getElementById('info-toggle'),infoPanel=document.getElementById('info-panel'),infoClose=document.getElementById('info-close');
-function setInfo(open){infoPanel.hidden=!open;infoToggle.setAttribute('aria-expanded',String(open));}
-infoToggle.addEventListener('click',()=>setInfo(infoPanel.hidden));infoClose.addEventListener('click',()=>setInfo(false));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')setInfo(false)});
-</script>
+<button id="info-toggle" class="info-button" type="button" aria-label="Open information" aria-expanded="false" title="Information">i</button>
+<div id="info-panel" class="info-panel" hidden><div class="info-header"><div><div class="info-eyebrow">WEBGIS · REMOTE SENSING</div><h2>Information &amp; Tutorial</h2><p>WebGIS Air Pollution — Sentinel-5P CO</p></div><button id="info-close" class="info-close" type="button">×</button></div><div class="info-content"><h3>1. Tentukan area</h3><p>Gunakan toolbar di kiri atas peta untuk membuat <b>Polygon</b> atau <b>Rectangle</b>. Hanya satu AOI aktif pada satu waktu.</p><h3>2. Tentukan periode</h3><p>Pilih <b>Start</b> dan <b>End</b>. Tanggal End harus lebih besar dari Start.</p><h3>3. Jalankan analisis</h3><p>Pilih <b>Mean, Median, Minimum</b>, atau <b>Maximum</b>, lalu klik <b>RUN ANALYSIS</b>.</p><h3>4. GeoTIFF</h3><p>Unggah GeoTIFF yang memiliki CRS/georeferensi. Hasil analisis dapat diunduh sebagai GeoTIFF.</p><h3>5. PDF</h3><p>Setelah analisis berhasil, klik <b>DOWNLOAD PDF REPORT</b> untuk membuat laporan ringkas.</p><div class="info-note"><b>Catatan:</b> CO adalah <i>satellite column number density</i> dalam mol/m², bukan konsentrasi CO permukaan atau ISPU.</div><h3>Jika analisis gagal</h3><p>Pastikan <b>GEE_PROJECT_ID</b> dan <b>GOOGLE_APPLICATION_CREDENTIALS</b> sudah dikonfigurasi di Codespace.</p></div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.0/dist/leaflet-geoman.min.js"></script><script src="js/app.js?v=4"></script>
 </body></html>
